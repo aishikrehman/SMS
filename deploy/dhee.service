@@ -1,0 +1,31 @@
+# systemd unit for Dhee SMS (Linux). See DEPLOY.md → "systemd".
+#   sudo cp deploy/dhee.service /etc/systemd/system/dhee.service
+#   (edit User=, WorkingDirectory= and the node path if they differ)
+#   sudo systemctl daemon-reload && sudo systemctl enable --now dhee
+#   journalctl -u dhee -f
+[Unit]
+Description=Dhee SMS school management server
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dhee
+Group=dhee
+WorkingDirectory=/opt/dhee
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+# graceful shutdown: finish requests and pending writes
+KillSignal=SIGTERM
+TimeoutStopSec=20
+# hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/dhee/data /opt/dhee/backups /opt/dhee/logs
+
+[Install]
+WantedBy=multi-user.target

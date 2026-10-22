@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#006a4e">
+  <title>Dhee SMS</title>
+  <meta name="description" content="Dhee SMS — শিক্ষাপ্রতিষ্ঠান ব্যবস্থাপনা ও ওয়েবসাইট">
+
+  <!-- Tailwind (CDN build, pinned). The brand palette reads CSS variables set by Theme.apply(). -->
+  <script src="https://cdn.tailwindcss.com/3.4.5"></script>
+  <script>
+    const shade = n => `rgb(var(--b${n}) / <alpha-value>)`;
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: shade(50), 100: shade(100), 200: shade(200), 300: shade(300), 400: shade(400), 500: shade(500), 600: shade(600), 700: shade(700), 800: shade(800), 900: shade(900), 950: shade(950) },
+            accent: 'var(--accent)',
+            ink: { 900: '#0f172a' }
+          },
+          fontFamily: { sans: ['var(--font-sans)'], serif: ['var(--font-heading)'], heading: ['var(--font-heading)'] }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Poppins:wght@400;500;600;700&family=Noto+Sans:wght@400;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Source+Serif+4:wght@600;700&family=Merriweather:wght@700&family=Tiro+Bangla&family=Noto+Serif+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Icons, QR codes and barcodes (pinned) -->
+  <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/site.css">
+</head>
+<body class="text-slate-800 font-sans antialiased">
+  <!-- Application shell -->
+  <a href="#view" class="skip-link" onclick="event.preventDefault();const v=document.getElementById('view');v.setAttribute('tabindex','-1');v.focus()">মূল বিষয়বস্তুতে যান</a>
+  <div id="app">
+    <header id="topbar"></header>
+    <div id="view"></div>
+  </div>
+
+  <!-- Modal + toast hosts -->
+  <div id="modal-root"></div>
+  <div id="toast-root" class="fixed bottom-4 right-4 z-[90] flex flex-col gap-2 items-end pointer-events-none"></div>
+
+  <!-- Print host: only visible under @media print -->
+  <div id="print-root"></div>
+
+  <!-- Display & accessibility (theme mode, text size …) — applied before the first paint -->
+  <script src="/js/a11y.js"></script>
+  <!-- Core -->
+  <script src="/js/db.js"></script>
+  <script src="/js/core.js"></script>
+  <script src="/js/print.js"></script>
+  <!-- Portals -->
+  <script src="/js/views/public.js"></script>
+  <script src="/js/views/principal.js"></script>
+  <script src="/js/views/teacher.js"></script>
+  <script src="/js/views/admin.js"></script>
+  <script src="/js/views/student.js"></script>
+  <script src="/js/views/guardian.js"></script>
+  <!-- Feature modules (plug extra pages into the portals above) -->
+  <script src="/js/modules/dossier.js"></script>
+  <script src="/js/modules/finance.js"></script>
+  <script src="/js/modules/installments.js"></script>
+  <script src="/js/modules/faculty.js"></script>
+  <script src="/js/modules/exams.js"></script>
+  <script src="/js/modules/calendar.js"></script>
+  <script src="/js/modules/services.js"></script>
+  <script src="/js/modules/clone.js"></script>
+  <script src="/js/modules/settings.js"></script>
+  <script src="/js/modules/website.js"></script>
+  <script src="/js/modules/admissions.js"></script>
+  <script src="/js/modules/academics.js"></script>
+  <script src="/js/modules/examhub.js"></script>
+  <script src="/js/modules/qbuilder.js"></script>
+  <script src="/js/modules/semester.js"></script>
+  <script src="/js/modules/fees.js"></script>
+  <script src="/js/modules/hr.js"></script>
+  <script src="/js/modules/mis.js"></script>
+  <script src="/js/modules/dataio.js"></script>
+  <script src="/js/modules/attendance.js"></script>
+  <script src="/js/modules/logistics.js"></script>
+  <script src="/js/modules/comms.js"></script>
+  <script src="/js/modules/printstudio.js"></script>
+  <!-- Module tags (RBAC) & final wiring -->
+  <script src="/js/modules/wiring.js"></script>
+  <script src="/js/modules/customize.js"></script>
+  <script src="/js/modules/ops.js"></script>
+  <script src="/js/modules/people.js"></script>
+  <script src="/js/modules/school.js"></script>
+  <script src="/js/modules/account.js"></script>
+  <script src="/js/modules/platform.js"></script>
+  <script src="/js/modules/staffgate.js"></script>
+  <script src="/js/modules/me.js"></script>
+  <script src="/js/modules/onboarding.js"></script>
+  <script src="/js/modules/pubresult.js"></script>
+  <script src="/js/modules/teacherpage.js"></script>
+  <!-- Institution achievements, optional public syllabus / materials / library catalogue, contact page, date settings -->
+  <script src="/js/modules/pubcontent.js"></script>
+  <!-- Students area, CSV kit, subject sets, staff marks entry (needs the modules above) -->
+  <script src="/js/modules/csvkit.js"></script>
+  <script src="/js/modules/students.js"></script>
+  <!-- Exam operations: online tests, exam attendance, mark-entry sheet, OMR evaluation (needs students.js, qbuilder.js) -->
+  <script src="/js/modules/examops.js"></script>
+  <!-- Exam planning & results: routine builder / generator / invigilation, results hub, re-check, bulk entry -->
+  <script src="/js/modules/examplan.js"></script>
+  <!-- Results UI: marks spreadsheet, marksheet design, public result views -->
+  <script src="/js/modules/resultsui.js"></script>
+  <script src="/js/modules/routine.js"></script>
+  <!-- Institution settings: separate pages (settings/basic, design, academic, features, access, achievements) -->
+  <script src="/js/modules/instsettings.js"></script>
+  <script src="/js/modules/seatplan.js"></script>
+  <!-- Server glue: first-run setup, sign-in, public look-ups. Loads the state from the Node server, then starts the app. -->
+  <script src="/js/sync.js"></script>
+  <!-- Root User operations: maintenance mode, website reset, developer information (needs Sync) -->
+  <script src="/js/modules/rootops.js"></script>
+<script src="/js/modules/hubs.js"></script>
+  <script>Sync.start();</script>
+</body>
+</html>

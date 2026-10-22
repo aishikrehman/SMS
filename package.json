@@ -1,0 +1,27 @@
+{
+  "name": "dhee-sms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dhee SMS — school, college & madrasah management platform (Node.js server + vanilla-JS front end)",
+  "type": "commonjs",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch-path=server server/index.js --dev",
+    "migrate": "node server/migrate.js",
+    "reset": "node server/reset.js",
+    "seed:demo": "node server/seed/demo.js",
+    "check": "node server/check.js",
+    "backup": "node server/backup.js",
+    "restore": "node server/restore.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "optionalDependencies": {
+    "pg": "^8.13.1"
+  }
+}
