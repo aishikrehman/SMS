@@ -1,5 +1,5 @@
 /* PostgreSQL driver — uses the optional `pg` package (npm install pulls it in as an optionalDependency).
-   Same interface as ./sqlite.js. Values are stored as JSONB. */
+   Same interface as ./mysql.js. Values are stored as JSONB. */
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');

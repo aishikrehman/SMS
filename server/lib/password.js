@@ -21,10 +21,10 @@ async function verifyPassword(pw, stored) {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
-/** Rule for passwords people choose: at least 10 characters, with a letter and a digit, not the user name. Returns a Bangla message or ''. */
+/** Rule for passwords people choose: at least 6 characters, with a letter and a digit, not the user name. Returns a Bangla message or ''. */
 function weakness(pw, username = '') {
   pw = String(pw || '');
-  if (pw.length < 10) return 'পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের হতে হবে।';
+  if (pw.length < 6) return 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';
   if (!/[A-Za-zঀ-৿]/.test(pw) || !/[0-9০-৯]/.test(pw)) return 'পাসওয়ার্ডে অন্তত একটি অক্ষর ও একটি সংখ্যা থাকতে হবে।';
   if (username && pw.toLowerCase().includes(String(username).toLowerCase())) return 'পাসওয়ার্ডে ইউজার আইডি রাখা যাবে না।';
   return '';

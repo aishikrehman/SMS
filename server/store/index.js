@@ -1,9 +1,10 @@
 /* Store factory — picks the driver from DB_DRIVER.
 
-   DB_DRIVER=sqlite    (default) SQLite file at SQLITE_PATH (default data/dhee.sqlite)
+   DB_DRIVER=mysql     (default) MySQL / MariaDB at MYSQL_URL (or MYSQL_HOST/PORT/USER/PASSWORD/DATABASE)
    DB_DRIVER=postgres  PostgreSQL at DATABASE_URL
-   DB_DRIVER=both      writes go to both; reads come from DB_PRIMARY (default sqlite).
+   DB_DRIVER=both      MySQL + PostgreSQL: writes go to both; reads come from DB_PRIMARY (default mysql).
                        A failed write to the secondary is logged, never fatal.
+   Old SQLite data is imported once with: npm run migrate -- --from-sqlite <file> (server/migrate.js).
 
    Store interface (every method is async):
      init() / close()
@@ -18,17 +19,17 @@
      createSession / getSession / touchSession / deleteSession / deleteUserSessions / purgeSessions
      getMeta(key) / setMeta(key, value) / allMeta()
      ping()                          → true when the database answers (health check)
-     backupTo(file)                  (SQLite only) consistent copy of the database file
 */
 'use strict';
 const config = require('../config');
-const SqliteStore = require('./sqlite');
 const PostgresStore = require('./postgres');
+const MysqlStore = require('./mysql');
+const DRIVERS = ['mysql', 'postgres'];
 
 function make(name, opts = {}) {
-  if (name === 'sqlite') return new SqliteStore({ path: opts.sqlitePath || config.sqlitePath });
   if (name === 'postgres') return new PostgresStore({ url: opts.databaseUrl || config.databaseUrl, ssl: opts.pgSsl ?? config.pgSsl });
-  throw new Error(`Unknown store driver "${name}" (use sqlite or postgres)`);
+  if (name === 'mysql') return new MysqlStore({ ...config.mysql, ...(opts.mysql || {}), keyMaxMb: config.keyMaxMb, log: opts.log || console });
+  throw new Error(`Unknown store driver "${name}" (use mysql or postgres)`);
 }
 
 /** Writes go to both stores; reads come from the primary. */
@@ -78,15 +79,26 @@ class BothStore {
   get primary() { return this.p; }
 }
 
+function secondaryOf(primary) { return primary === 'mysql' ? 'postgres' : 'mysql'; }
+
+/** Human description of where a store keeps its data (for CLI messages; never prints a password). */
+function describe(driver = config.driver) {
+  const my = () => { const m = config.mysql; if (m.url) { try { const u = new URL(m.url); return `${u.protocol}//${u.username ? u.username + '@' : ''}${u.host}${u.pathname}`; } catch (_) { return 'MYSQL_URL'; } } return m.host || m.database ? `mysql://${m.user ? m.user + '@' : ''}${m.host || 'localhost'}:${m.port}/${m.database}` : 'MYSQL_URL (not set)'; };
+  const one = d => d === 'postgres' ? 'DATABASE_URL' : d === 'mysql' ? my() : d;
+  if (driver !== 'both') return one(driver);
+  const p = config.primary, s = secondaryOf(p);
+  return `both (${one(p)} + ${one(s)})`;
+}
+
 /** Build the store selected by the environment (or by explicit options, used by migrate). */
 function createStore(opts = {}) {
   const driver = String(opts.driver || config.driver).toLowerCase();
   if (driver === 'both') {
     const primary = String(opts.primary || config.primary).toLowerCase();
-    const secondary = primary === 'sqlite' ? 'postgres' : 'sqlite';
+    const secondary = secondaryOf(primary);
     return new BothStore(make(primary, opts), make(secondary, opts), opts.log || console);
   }
   return make(driver, opts);
 }
 
-module.exports = { createStore, make };
+module.exports = { createStore, make, describe, secondaryOf, DRIVERS };

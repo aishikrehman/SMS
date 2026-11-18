@@ -1,13 +1,14 @@
 # Dhee SMS — School, College & Madrasah Management Platform
 
-**Dhee SMS** is a multi-campus school ERP and public website. The front end is plain HTML, Tailwind (CDN) and vanilla JavaScript with no build step; it runs only with its **Node.js server** (`server/`), which stores the data in **SQLite** (default) or **PostgreSQL**, or in both at once.
+**Dhee SMS** is a multi-campus school ERP and public website. The front end is plain HTML, Tailwind (CDN) and vanilla JavaScript with no build step; it runs only with its **Node.js server** (`server/`), which stores the data in **MySQL / MariaDB** (default) or **PostgreSQL**, or in both at once.
 
 ## Run it
 
-Requires Node.js 22.13 or newer (SQLite comes built in as `node:sqlite`; no native compile).
+Requires Node.js 22.13 or newer and a MySQL 5.7+/8.x or MariaDB 10.3+ server (database in `utf8mb4`; see DEPLOY.md for installing it on Windows, Ubuntu or cPanel hosting).
 
 ```bash
 npm install
+cp .env.example .env   # set MYSQL_URL=mysql://user:pass@host:3306/dhee
 npm start          # production mode (the default) on http://localhost:3000
 npm run dev        # development: restarts when server files change; OTP messages are printed on the console
 ```
@@ -18,10 +19,11 @@ Copy `.env.example` to `.env` to change settings (real environment variables win
 |---|---|---|
 | `PORT` / `HOST` | `3000` / `0.0.0.0` | Where the server listens (`--port 4000` also works) |
 | `NODE_ENV` | `production` | `npm run dev` sets `development` |
-| `DB_DRIVER` | `sqlite` | `sqlite`, `postgres` or `both` |
-| `SQLITE_PATH` | `data/dhee.sqlite` | SQLite file |
+| `DB_DRIVER` | `mysql` | `mysql` (MySQL or MariaDB), `postgres` or `both` (mysql + postgres) |
+| `MYSQL_URL` | — | `mysql://user:pass@host:3306/db` (URL-encode special characters in the password); or `MYSQL_HOST` / `MYSQL_PORT` / `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DATABASE` (`MYSQL_SOCKET`, `MYSQL_SSL=true` optional). The database is created (utf8mb4) when the user may; the tables always are |
 | `DATABASE_URL` | — | PostgreSQL connection string (`postgres://user:pass@host:5432/db`); `PGSSL=true` for TLS |
-| `DB_PRIMARY` | `sqlite` | In `both` mode: the store that serves reads |
+| `DB_PRIMARY` | `mysql` | In `both` mode: the store that serves reads |
+| `DATA_DIR` | `data` | Small runtime files (`dhee-server.pid`) |
 | `SESSION_TTL_HOURS` / `SESSION_IDLE_MINUTES` | `12` / `120` | Longest sign-in, and how long it survives without use |
 | `COOKIE_SAMESITE` | `Lax` | `Strict` is also possible |
 | `COOKIE_SECURE` | `auto` | Secure cookie flag: `auto` = when the request is HTTPS; set `TRUST_PROXY=true` behind nginx/Caddy |
@@ -40,7 +42,11 @@ With an empty database the site opens **প্রাথমিক সেটআপ
 
 `npm run reset` (stop the server first; `-- --yes` skips the question) wipes the database back to the setup state.
 
-### PostgreSQL, both stores, migration
+Without a MySQL configuration the server stops with a Bangla + English message explaining `MYSQL_URL`.
+
+**max_allowed_packet:** each top-level collection is written as one SQL statement, so MySQL/MariaDB's `max_allowed_packet` must be larger than `KEY_MAX_MB` (25 MB). MariaDB's default is 16 MB: set `max_allowed_packet=64M` under `[mysqld]` in my.cnf / my.ini. The server warns at start when it is too small and refuses an oversized collection with a clear message.
+
+### PostgreSQL, both stores, migration, old SQLite data
 
 ```bash
 # PostgreSQL only
@@ -48,18 +54,21 @@ DB_DRIVER=postgres DATABASE_URL=postgres://dhee:secret@localhost:5432/dhee npm s
 
 # both: every write goes to both stores, reads come from DB_PRIMARY;
 # a failed write to the secondary is logged, never fatal; an empty secondary is filled from the primary at start-up
-DB_DRIVER=both DB_PRIMARY=sqlite DATABASE_URL=postgres://… npm start
+DB_DRIVER=both DB_PRIMARY=mysql MYSQL_URL=mysql://… DATABASE_URL=postgres://… npm start
 
 # copy all data between drivers (rows keep their revision numbers; verified after copying)
-npm run migrate -- --from sqlite --to postgres      # add --force to overwrite a non-empty target
-npm run migrate -- --from postgres --to sqlite
+npm run migrate -- --from mysql --to postgres       # add --force to overwrite a non-empty target
+npm run migrate -- --from postgres --to mysql
+
+# পুরোনো SQLite ডেটা আনা: one-time import of a data/dhee.sqlite from an older version (read-only) into MYSQL_URL
+npm run migrate -- --from-sqlite data/dhee.sqlite
 ```
 
-The tables are created automatically (`server/store/sqlite.sql`, `server/store/postgres.sql`). `npm run check` syntax-checks every JavaScript file and validates the configuration. `npm run backup` and `npm run restore -- <file>` make and restore backups. **DEPLOY.md** (Bangla) covers running the server for a school; **HANDOVER.md** is the handover checklist.
+The tables are created automatically (`server/store/mysql.sql`, `server/store/postgres.sql`). `npm run check` syntax-checks every JavaScript file and validates the configuration. `npm run backup` and `npm run restore -- <file>` make and restore backups. **DEPLOY.md** (Bangla) covers running the server for a school; **HANDOVER.md** is the handover checklist.
 
 ### Data store
 
-The browser works on one state object (`DB.s`). The server keeps it **one row per top-level key** in `app_state(key, value, rev, updated_at, updated_by)` (JSON text in SQLite, JSONB in PostgreSQL), plus `app_sessions` and `app_meta`. This key-value store is the bridge toward a fully normalised schema (one table per collection), which can be introduced key by key behind the same API.
+The browser works on one state object (`DB.s`). The server keeps it **one row per top-level key** in `app_state(key, value, rev, updated_at, updated_by)` (JSON text in a utf8mb4 LONGTEXT in MySQL/MariaDB, JSONB in PostgreSQL), plus `app_sessions` and `app_meta`. This key-value store is the bridge toward a fully normalised schema (one table per collection), which can be introduced key by key behind the same API.
 
 - **Load:** `GET /api/state` before the app starts. Signed in: what the user's roles allow (see "Data access by role" below). Anonymous visitors (public website): only the public part (institution, theme, website, campuses, classes, subjects, fee structures, website notices, calendar, exam list, gallery, teacher directory fields, admission form and test schedule, job posts); everything else arrives empty.
 - **Save:** `DB.save()` sends only the top-level keys whose JSON changed (debounced 300 ms, `PUT /api/state`). A failed save shows a Bangla message and is retried. Open tabs pick up keys changed elsewhere every 20 s and when the tab becomes visible.
@@ -106,11 +115,11 @@ A real institution starts with the empty first-run setup page. For training or e
 ```bash
 npm run seed:demo                          # refuses when the database already has data
 npm run seed:demo -- --force               # WIPES the configured database, then loads the demo
-npm run seed:demo -- --out demo.sqlite     # writes a separate SQLite demo database instead
+npm run seed:demo -- --mysql-url mysql://dhee:…@localhost:3306/dhee_demo   # fills a separate demo database instead
 DB_DRIVER=postgres DATABASE_URL=postgres://… npm run seed:demo   # fill PostgreSQL
 ```
 
-Stop the server first. It honours `DB_DRIVER`, `SQLITE_PATH` and `DATABASE_URL` like the server; with `--out`, start the server with `SQLITE_PATH=demo.sqlite`. The demo code lives only in `server/seed/` (`base.js`, `modules.js`, `build.js`, `demo.js`); nothing in the browser code creates demo records. Demo passwords are stored as scrypt hashes like any other.
+Stop the server first. It honours `DB_DRIVER`, `MYSQL_URL` and `DATABASE_URL` like the server; with `--mysql-url`, start the server with that `MYSQL_URL`. The demo code lives only in `server/seed/` (`base.js`, `modules.js`, `build.js`, `demo.js`); nothing in the browser code creates demo records. Demo passwords are stored as scrypt hashes like any other.
 
 | Sign in as | User ID | Password |
 |---|---|---|
@@ -202,19 +211,19 @@ server/backup.js         npm run backup, daily schedule; server/restore.js — n
 server/public.js         anonymous view, public look-ups and append-only submissions, OTP recovery
 server/defaults.js       structural defaults of a new institution
 server/lib/              password (scrypt), notify (SMS/e-mail provider), hash (audit chain), logger (daily JSON logs), ratelimit
-server/store/            drivers: sqlite.js (node:sqlite), postgres.js (pg), index.js (selects / "both");
-                         DDL in sqlite.sql and postgres.sql
-server/migrate.js        npm run migrate — copy all rows between drivers
+server/store/            drivers: mysql.js (mysql2; MySQL & MariaDB), postgres.js (pg), index.js (selects / "both");
+                         DDL in mysql.sql and postgres.sql
+server/migrate.js        npm run migrate — copy all rows between drivers; --from-sqlite imports an old SQLite file
 server/reset.js          npm run reset — wipe back to the first-run setup
 server/check.js          npm run check — syntax-check every JavaScript file and validate the configuration
-data/                    SQLite database (not in version control)
+data/                    runtime files (pid); old versions kept their SQLite database here (not in version control)
 ```
 
 Modules create their own collections with `DB.addSeeder(key, fn)` (an empty collection, a default or a shape migration — never sample records), so a module can be added without touching `db.js`.
 
 ## Production notes
 
-- **Data and security:** data lives on the Node server (SQLite or PostgreSQL); passwords are scrypt hashes; sessions are httpOnly cookies. The server filters what each role receives and enforces record-level write rules (see "Data access by role"); detailed field validation of staff edits (for example, that an invoice amount matches the fee structure) still runs in the browser.
+- **Data and security:** data lives on the Node server (MySQL/MariaDB or PostgreSQL); passwords are scrypt hashes; sessions are httpOnly cookies. The server filters what each role receives and enforces record-level write rules (see "Data access by role"); detailed field validation of staff edits (for example, that an invoice amount matches the fee structure) still runs in the browser.
 - **External services:** nothing is simulated. SMS / e-mail / push notices are written to the Message Log as *সারিতে আছে* (queued); only one-time passwords are sent today (server/lib/notify.js). Online payment, the identity registry and attendance devices work only when configured; otherwise the app says so and offers the manual path (counter / TrxID, typed details, the হাজিরা ডেস্ক). Gateway secrets are only ever stored masked.
 - **Demo data:** only `npm run seed:demo` creates it (see "ডেমো ডেটা (ঐচ্ছিক)"); it books the rest of its stated enrolment in the ledger as clearly labelled monthly bulk entries.
 - **Holiday dates:** lunar holiday dates (Eid, Puja) are approximate and editable in the Academic Calendar.

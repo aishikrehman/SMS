@@ -60,7 +60,7 @@ function institutionDefaults(school, now = new Date()) {
       shifts: [{ id: 'MORNING', name: 'প্রভাতি', start: '07:30', end: '12:00' }, { id: 'DAY', name: 'দিবা', start: '12:30', end: '17:00' }],
       sectionCapacity: 45, roomRules: { maxPerRoom: 45, examSeatsPerBench: 2, keepLabsForPractical: true },
     },
-    theme: { primary: '#006a4e', accent: '#f42a41', font: 'Inter', headingFont: 'Source Serif 4', bnFont: 'Noto Serif Bengali', baseSize: 15, radius: 10, surface: '#f6f8f7' },
+    theme: { primary: '#0f6b5f', accent: '#134e48', font: 'Inter', headingFont: 'Source Serif 4', bnFont: 'Noto Serif Bengali', baseSize: 15, radius: 8, surface: '#f8fafc' },
     site: {
       hero: { title: school.nameBn || school.name, subtitle: '', image: null, ctaText: 'ভর্তির আবেদন করুন', ctaLink: '/admissions', cta2Text: 'ফলাফল দেখুন', cta2Link: '/results', showStats: false, align: 'left' },
       ticker: true, programs: [], gallery: [],

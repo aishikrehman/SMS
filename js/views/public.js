@@ -5,7 +5,7 @@
 const Pub = {
   wrap(inner) { return `<div class="fade-in">${inner}</div>${this.footer()}`; },
   section(title, kicker, body, cls = '') {
-    return `<section class="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-20 ${cls}">${kicker || title ? `<div class="pub-head">${kicker ? `<div class="pub-kicker">${kicker}</div>` : ''}${title ? `<h2 class="pub-h2">${title}</h2>` : ''}</div>` : ''}${body}</section>`;
+    return `<section class="pub-sec max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16 ${cls}">${kicker || title ? `<div class="pub-head">${kicker ? `<div class="pub-kicker">${kicker}</div>` : ''}${title ? `<h2 class="pub-h2">${title}</h2>` : ''}</div>` : ''}${body}</section>`;
   },
   hero(title, sub) {
     return `<div class="pub-hero pub-pagehero text-white"><div class="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16"><h1>${title}</h1>${sub ? `<p class="text-white/85 text-lg mt-3 max-w-2xl leading-relaxed">${sub}</p>` : ''}</div></div>`;

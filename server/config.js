@@ -26,7 +26,8 @@ const portArg = process.argv.indexOf('--port');
 if (portArg > 0 && process.argv[portArg + 1]) env.PORT = process.argv[portArg + 1];
 const bool = (v, d) => (v === undefined || v === '' ? d : /^(1|true|yes|on)$/i.test(String(v)));
 const production = env.NODE_ENV === 'production';
-const driver = String(env.DB_DRIVER || 'sqlite').toLowerCase();
+/* DB_DRIVER: mysql (default; MariaDB too) | postgres | both (mysql + postgres). */
+const driver = String(env.DB_DRIVER || 'mysql').toLowerCase();
 
 const num = (v, d) => (v === undefined || v === '' || !Number.isFinite(+v) ? d : +v);
 /** TRUST_PROXY: false (default) · true (= exactly one proxy hop in front) · a hop count · Express subnet list ("loopback, 10.0.0.0/8"). */
@@ -42,10 +43,17 @@ const config = {
   production,
   port: +env.PORT || 3000,
   host: env.HOST || '0.0.0.0',
-  driver,                                                        // sqlite | postgres | both
-  primary: String(env.DB_PRIMARY || 'sqlite').toLowerCase(),     // which driver serves reads in "both" mode
-  sqlitePath: path.resolve(ROOT, env.SQLITE_PATH || 'data/dhee.sqlite'),
+  driver,                                                        // mysql | postgres | both
+  primary: String(env.DB_PRIMARY || 'mysql').toLowerCase(),      // which driver serves reads in "both" mode (the other one is the secondary)
+  dataDir: path.resolve(ROOT, env.DATA_DIR || 'data'),           // small runtime files (dhee-server.pid)
   databaseUrl: env.DATABASE_URL || '',
+  // MySQL / MariaDB: MYSQL_URL=mysql://user:pass@host:3306/db, or the separate fields.
+  mysql: {
+    url: env.MYSQL_URL || '',
+    host: env.MYSQL_HOST || '', port: num(env.MYSQL_PORT, 3306),
+    user: env.MYSQL_USER || '', password: env.MYSQL_PASSWORD || '', database: env.MYSQL_DATABASE || '',
+    socket: env.MYSQL_SOCKET || '', ssl: bool(env.MYSQL_SSL, false),
+  },
   pgSsl: bool(env.PGSSL, false),
   // Sessions: absolute lifetime and idle timeout (whichever ends first).
   sessionTtlHours: num(env.SESSION_TTL_HOURS, 12),

@@ -119,8 +119,11 @@ function makeAuth(state, store, log = console) {
   async function changePassword(req, res) {
     const { current = '', next = '' } = req.body || {};
     const u = state.user(req.user.id);
-    if (!u || !(await verifyPassword(String(current), u.pwHash))) return res.status(400).json({ error: 'wrong_current' });
-    if (next === current) return res.status(400).json({ error: 'same' });
+    if (!u) return res.status(400).json({ error: 'wrong_current' });
+    // Forced change right after signing in with a temporary password: this session already proved it, so don't ask again.
+    const forced = !!req.user.mustChange;
+    if (!forced && !(await verifyPassword(String(current), u.pwHash))) return res.status(400).json({ error: 'wrong_current' });
+    if (forced ? await verifyPassword(String(next), u.pwHash) : next === current) return res.status(400).json({ error: 'same' });
     const weak = weakness(next, u.username); if (weak) return res.status(400).json({ error: 'weak', message: weak });
     const h = await hashPassword(next);
     await state.mutate(get => ({

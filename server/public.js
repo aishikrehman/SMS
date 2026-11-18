@@ -494,7 +494,18 @@ function publicStats(state) {
     subjects: arr('subjects').filter(s => s && s.active !== false).length,
     books: ff.library !== false && Array.isArray(lib.books) ? lib.books.reduce((n, b) => n + (+b.copies || 0), 0) : 0,
     years: founded > 1800 && founded <= year ? year - founded : 0,
+    ...resultStats(state),
   };
+}
+/** Pass rate (%) and GPA-5 count of the most recent published exam that has a public result snapshot; zeros when none. */
+function resultStats(state) {
+  const sets = state.get('pubResultSets') || {};
+  const ex = (state.get('exams') || []).filter(e => e && e.published && sets[e.id] && sets[e.id].classes)
+    .sort((a, b) => String((sets[b.id] || {}).at || b.date || '').localeCompare(String((sets[a.id] || {}).at || a.date || '')))[0];
+  if (!ex) return { passRate: 0, gpa5: 0 };
+  const rows = Object.values(sets[ex.id].classes).flatMap(c => (c && Array.isArray(c.rows) ? c.rows : []));
+  if (!rows.length) return { passRate: 0, gpa5: 0 };
+  return { passRate: Math.round(rows.filter(r => r.passed).length / rows.length * 1000) / 10, gpa5: rows.filter(r => r.gpa === 5).length };
 }
 
 /* Public result views (school.pubViews, edited in ফলাফল → পাবলিক ফলাফল): a class / section result list, a

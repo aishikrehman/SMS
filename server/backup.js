@@ -4,8 +4,7 @@
      npm run restore -- <file>         see server/restore.js (refuses while the server runs)
 
    Files in BACKUP_DIR (default backups/):
-     SQLite      dhee-YYYY-MM-DD.sqlite              (VACUUM INTO: a consistent, ready-to-open copy)
-     PostgreSQL  dhee-YYYY-MM-DD.json.gz             (every app_state and app_meta row, gzip JSON)
+     dhee-YYYY-MM-DD.json.gz   every app_state and app_meta row as gzip JSON (MySQL/MariaDB and PostgreSQL)
    The daily backup has the date only; backups made on request add the time and "-manual", and the copy
    taken just before a restore adds "-prerestore". Files older than BACKUP_KEEP_DAYS (default 30) are
    deleted, but the newest three are always kept. In "both" mode the primary store is backed up.
@@ -16,7 +15,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const config = require('./config');
 
-const NAME_RE = /^dhee-\d{4}-\d{2}-\d{2}(?:-\d{6})?(?:-(?:manual|prerestore|cli|predemo|prereset|presite))?\.(?:sqlite|json\.gz)$/;
+const NAME_RE = /^dhee-\d{4}-\d{2}-\d{2}(?:-\d{6})?(?:-(?:manual|prerestore|cli|predemo|prereset|presite))?\.json\.gz$/;
 const z = n => String(n).padStart(2, '0');
 const dayOf = (d = new Date()) => `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
 const timeOf = (d = new Date()) => `${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
@@ -25,20 +24,17 @@ const primaryOf = store => store.primary || store;
 /** Make one backup. kind: 'daily' | 'manual' | 'prerestore' | 'cli'. Returns { name, size, file }. */
 async function createBackup(store, { dir = config.backupDir, kind = 'manual', log = console } = {}) {
   fs.mkdirSync(dir, { recursive: true });
-  const st = primaryOf(store), d = new Date(), sqlite = st.name === 'sqlite';
+  const st = primaryOf(store), d = new Date();
   const base = kind === 'daily' ? `dhee-${dayOf(d)}` : `dhee-${dayOf(d)}-${timeOf(d)}-${kind}`;
-  const name = `${base}.${sqlite ? 'sqlite' : 'json.gz'}`, file = path.join(dir, name), tmp = `${file}.part`;
+  const name = `${base}.json.gz`, file = path.join(dir, name), tmp = `${file}.part`;
   fs.rmSync(tmp, { force: true });
   try {
-    if (sqlite) {
-      await st.backupTo(tmp);
-      const n = countSqliteRows(tmp);            // verify: the copy opens and has the state table
-      if (!n) throw new Error('backup copy has no state rows');
-    } else {
-      const rows = await st.getAll(), meta = await st.allMeta();
-      const body = JSON.stringify({ format: 'dhee-backup', version: 1, driver: st.name, createdAt: d.toISOString(), rows, meta });
-      fs.writeFileSync(tmp, zlib.gzipSync(body));
-    }
+    const rows = await st.getAll(), meta = await st.allMeta();
+    if (!rows.length) throw new Error('the database has no state rows');
+    const body = JSON.stringify({ format: 'dhee-backup', version: 1, driver: st.name, createdAt: d.toISOString(), rows, meta });
+    fs.writeFileSync(tmp, zlib.gzipSync(body));
+    // verify: the written file reads back with every row
+    if (parseBackup(fs.readFileSync(tmp), true).rows.length !== rows.length) throw new Error('backup verification failed');
     fs.renameSync(tmp, file);
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
   const size = fs.statSync(file).size;
@@ -46,35 +42,17 @@ async function createBackup(store, { dir = config.backupDir, kind = 'manual', lo
   return { name, size, file };
 }
 
-function openSqliteReadOnly(file) {
-  const emit = process.emitWarning;
-  process.emitWarning = function (w, ...r) { if (String(w && w.message || w).includes('SQLite')) return; return emit.call(process, w, ...r); };
-  try { const { DatabaseSync } = require('node:sqlite'); return new DatabaseSync(file, { readOnly: true }); } finally { process.emitWarning = emit; }
-}
-function countSqliteRows(file) {
-  const db = openSqliteReadOnly(file);
-  try { return db.prepare('SELECT COUNT(*) AS n FROM app_state').get().n; } finally { db.close(); }
+function parseBackup(raw, gz) {
+  const d = JSON.parse((gz ? zlib.gunzipSync(raw) : raw).toString('utf8'));
+  if (d.format !== 'dhee-backup' || !Array.isArray(d.rows)) throw new Error('not a Dhee SMS backup file');
+  return { rows: d.rows, meta: Array.isArray(d.meta) ? d.meta : [] };
 }
 
-/** Read the rows of a backup file of either format → { rows, meta }. */
+/** Read the rows of a backup file (.json.gz, or plain .json) → { rows, meta }. */
 function readBackup(file) {
-  if (/\.sqlite$/i.test(file)) {
-    const db = openSqliteReadOnly(file);
-    try {
-      const rows = db.prepare('SELECT key, value, rev, updated_at, updated_by FROM app_state ORDER BY key').all()
-        .map(r => ({ key: r.key, value: JSON.parse(r.value), rev: r.rev, updatedAt: r.updated_at, updatedBy: r.updated_by }));
-      let meta = [];
-      try { meta = db.prepare('SELECT key, value FROM app_meta').all().map(r => ({ key: r.key, value: JSON.parse(r.value) })); } catch (_) { }
-      return { rows, meta };
-    } finally { db.close(); }
-  }
-  if (/\.json\.gz$/i.test(file) || /\.json$/i.test(file)) {
-    const raw = fs.readFileSync(file);
-    const d = JSON.parse((/\.gz$/i.test(file) ? zlib.gunzipSync(raw) : raw).toString('utf8'));
-    if (d.format !== 'dhee-backup' || !Array.isArray(d.rows)) throw new Error('not a Dhee SMS backup file');
-    return { rows: d.rows, meta: Array.isArray(d.meta) ? d.meta : [] };
-  }
-  throw new Error('unknown backup format (expected .sqlite or .json.gz)');
+  if (/\.sqlite$/i.test(file)) throw new Error('this is an old SQLite database, not a backup. Import it with: npm run migrate -- --from-sqlite <file>');
+  if (/\.json(\.gz)?$/i.test(file)) return parseBackup(fs.readFileSync(file), /\.gz$/i.test(file));
+  throw new Error('unknown backup format (expected .json.gz)');
 }
 
 function listBackups(dir = config.backupDir) {
@@ -121,7 +99,7 @@ function scheduleDaily(store, log) {
 }
 
 /* ---------- "is the server running?" (used by restore / reset) ---------- */
-const pidFile = () => path.join(path.dirname(config.sqlitePath), 'dhee-server.pid');
+const pidFile = () => path.join(config.dataDir, 'dhee-server.pid');
 function writePid() { try { fs.mkdirSync(path.dirname(pidFile()), { recursive: true }); fs.writeFileSync(pidFile(), JSON.stringify({ pid: process.pid, port: config.port, startedAt: new Date().toISOString() })); } catch (_) { } }
 function removePid() { try { const d = JSON.parse(fs.readFileSync(pidFile(), 'utf8')); if (d.pid === process.pid) fs.rmSync(pidFile(), { force: true }); } catch (_) { } }
 function runningServer() {

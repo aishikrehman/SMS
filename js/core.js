@@ -14,7 +14,8 @@ function avatar(person, size = 36) {
   return `<span class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px;background:${U.color(name)}">${inner}</span>`;
 }
 function badge(text, tone = 'slate') {
-  const tones = { slate: 'bg-slate-100 text-slate-700', green: 'bg-emerald-100 text-emerald-700', red: 'bg-red-100 text-red-700', amber: 'bg-amber-100 text-amber-800', blue: 'bg-blue-100 text-blue-700', violet: 'bg-violet-100 text-violet-700', pink: 'bg-pink-100 text-pink-700' };
+  // Minimal: neutral by default; colour only when the badge carries a status (success / warning / error).
+  const tones = { slate: 'b-neutral', blue: 'b-neutral', violet: 'b-neutral', pink: 'b-neutral', brand: 'b-brand', green: 'b-ok', red: 'b-bad', amber: 'b-warn' };
   return `<span class="badge ${tones[tone] || tones.slate}">${esc(text)}</span>`;
 }
 function statusBadge(st) {
@@ -23,12 +24,12 @@ function statusBadge(st) {
 }
 function pageHeader(title, subtitle = '', actions = '') {
   return `<div class="flex flex-wrap items-end justify-between gap-3 mb-5">
-    <div><h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">${title}</h1>${subtitle ? `<p class="text-sm text-slate-500 mt-0.5">${campusText(subtitle)}</p>` : ''}</div>
+    <div><h1 class="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">${title}</h1>${subtitle ? `<p class="text-sm text-slate-500 mt-0.5">${campusText(subtitle)}</p>` : ''}</div>
     <div class="flex flex-wrap gap-2">${actions}</div></div>`;
 }
 function kpi(label, value, sub = '', ic = 'activity', tone = 'blue') {
-  const tones = { blue: 'bg-blue-50 text-blue-600', green: 'bg-emerald-50 text-emerald-600', amber: 'bg-amber-50 text-amber-600', red: 'bg-red-50 text-red-600', violet: 'bg-violet-50 text-violet-600' };
-  return `<div class="card kpi flex items-start gap-3"><div class="rounded-xl p-2.5 ${tones[tone]}">${icon(ic, 'w-5 h-5')}</div>
+  // Minimal: neutral card, plain grey icon; `tone` is kept for callers but no longer paints a coloured tile.
+  return `<div class="card kpi flex items-start gap-3"><div class="kpi-ic">${icon(ic, 'w-5 h-5')}</div>
     <div class="min-w-0"><div class="l">${campusText(label)}</div><div class="v">${value}</div>${sub ? `<div class="text-xs text-slate-500 mt-0.5">${sub}</div>` : ''}</div></div>`;
 }
 function emptyState(msg, ic = 'inbox') { return `<div class="text-center py-10 text-slate-400">${icon(ic, 'w-8 h-8 mx-auto mb-2')}<div class="text-sm">${campusText(msg)}</div></div>`; }
@@ -444,16 +445,16 @@ const Theme = {
   mix(a, b, t) { return a.map((v, i) => Math.round(v + (b[i] - v) * t)); },
   hex(rgb) { return '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join(''); },
   apply(t = DB.s.theme) {
-    const base = this.hexToRgb(t.primary || '#006a4e'), W = [255, 255, 255], K = [0, 0, 0];
+    const base = this.hexToRgb(t.primary || '#0f6b5f'), W = [255, 255, 255], K = [0, 0, 0];
     const shades = { 50: this.mix(base, W, .93), 100: this.mix(base, W, .85), 200: this.mix(base, W, .7), 300: this.mix(base, W, .5), 400: this.mix(base, W, .3), 500: this.mix(base, W, .12), 600: base, 700: this.mix(base, K, .15), 800: this.mix(base, K, .3), 900: this.mix(base, K, .45), 950: this.mix(base, K, .62) };
     const root = document.documentElement.style;
     Object.entries(shades).forEach(([k, v]) => root.setProperty(`--b${k}`, v.join(' ')));
     root.setProperty('--brand', this.hex(base)); root.setProperty('--brand-700', this.hex(shades[700])); root.setProperty('--brand-ink', this.hex(shades[950])); root.setProperty('--brand-50', this.hex(shades[50]));
-    root.setProperty('--accent', t.accent || '#f42a41');
-    root.setProperty('--surface', t.surface || '#f6f8f7');
+    root.setProperty('--accent', t.accent || '#134e48');
+    root.setProperty('--surface', t.surface || '#f8fafc');
     root.setProperty('--font-sans', `"${t.bnFont || 'Noto Serif Bengali'}", "${t.font || 'Inter'}", system-ui, sans-serif`);   // Bangla interface: Bangla font first
     root.setProperty('--font-heading', `"${t.bnFont || 'Noto Serif Bengali'}", "${t.headingFont || 'Source Serif 4'}", Georgia, serif`);
-    root.setProperty('--radius', (t.radius ?? 10) + 'px');
+    root.setProperty('--radius', (t.radius ?? 8) + 'px');
     root.fontSize = (t.baseSize || 15) + 'px';
     this.sidebar(t, shades, root);
     if (typeof A11y !== 'undefined') A11y.apply();   // visitor's text size / theme mode on top of the institution theme
@@ -461,7 +462,7 @@ const Theme = {
   /** Sidebar palette: 'page' (same as the page background — default), 'brand', 'dark' or 'custom' (any colour; text contrast is automatic). */
   sidebar(t, shades, root) {
     const mode = t.sidebar || 'page';
-    const bg = mode === 'brand' ? this.hex(shades[950]) : mode === 'dark' ? '#0f172a' : mode === 'custom' ? (t.sidebarBg || '#ffffff') : (t.surface || '#f6f8f7');
+    const bg = mode === 'brand' ? this.hex(shades[950]) : mode === 'dark' ? '#0f172a' : mode === 'custom' ? (t.sidebarBg || '#ffffff') : (t.surface || '#f8fafc');
     const [r, g, b] = this.hexToRgb(bg), lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255, dark = lum < 0.55;
     const v = dark
       ? { fg: 'rgba(255,255,255,.78)', strong: '#ffffff', muted: 'rgba(255,255,255,.55)', hover: 'rgba(255,255,255,.08)', active: 'rgba(255,255,255,.14)', activeFg: '#ffffff', border: 'rgba(255,255,255,.12)', bar: '#ffffff', input: 'rgba(255,255,255,.08)', hit: 'rgba(250,204,21,.35)' }
@@ -474,7 +475,7 @@ const Theme = {
 function logoHtml(size = 40) {
   const s = DB.s.school;
   return s.logo ? `<img src="${s.logo}" alt="" style="width:${size}px;height:${size}px;object-fit:contain">`
-    : `<span class="inline-flex items-center justify-center rounded-full text-white font-extrabold shrink-0" style="width:${size}px;height:${size}px;background:var(--brand);box-shadow:0 0 0 3px #fff, 0 0 0 4px var(--accent);font-size:${Math.round(size * .34)}px">${esc(s.shortName.slice(0, 3))}</span>`;
+    : `<span class="inline-flex items-center justify-center rounded-full text-white font-extrabold shrink-0" style="width:${size}px;height:${size}px;background:var(--brand);font-size:${Math.round(size * .34)}px">${esc(s.shortName.slice(0, 3))}</span>`;
 }
 /* ==========================================================================
    APP
@@ -826,15 +827,14 @@ const App = {
       const today = new Date(), dWhere = U.headerDate(), dLine = dWhere ? U.dateLine(today, 'header', true) : [];
       const dHtml = dLine.map((a, i) => `<span class="${i ? 'pub-datebar-alt' : ''}">${esc(a)}</span>`).join('');
       $('#topbar').innerHTML = `${banner}
-        <div class="gov-strip h-1"></div>
         ${dWhere === 'strip' ? `<div class="pub-datebar"><div class="max-w-7xl mx-auto px-4 flex flex-wrap items-center gap-x-4 gap-y-0.5">${icon('calendar-days', 'w-4 h-4 shrink-0')}${dHtml}</div></div>` : ''}
         <div class="bg-white border-b border-slate-200"><div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <a href="/" class="flex items-center gap-3 min-w-0">${logoHtml(52)}<span class="min-w-0 leading-tight"><span class="block font-heading font-bold text-lg sm:text-2xl text-brand-800 truncate" data-noi18n>${esc(sch.nameBn || sch.name)}</span>${sch.nameBn ? `<span class="block text-sm text-slate-600 truncate" data-noi18n>${esc(sch.name)}</span>` : ''}</span></a>
+          <a href="/" class="flex items-center gap-3 min-w-0">${logoHtml(52)}<span class="min-w-0 leading-tight"><span class="block font-heading font-semibold text-lg sm:text-2xl text-slate-900 truncate" data-noi18n>${esc(sch.nameBn || sch.name)}</span>${sch.nameBn ? `<span class="block text-sm text-slate-600 truncate" data-noi18n>${esc(sch.name)}</span>` : ''}</span></a>
           <span class="flex-1"></span>${modeSwitch}${userMenu}
-          ${u ? '' : `<a href="${this.href('public', 'admissions')}" class="btn btn-accent hidden sm:inline-flex">${icon('file-pen-line')} অনলাইনে আবেদন করুন</a><button class="btn btn-primary" onclick="App.showLogin()">${icon('log-in')} লগইন</button>`}
+          ${u ? '' : `<a href="${this.href('public', 'admissions')}" class="btn btn-ghost hidden sm:inline-flex">${icon('file-pen-line')} অনলাইনে আবেদন করুন</a><button class="btn btn-primary" onclick="App.showLogin()">${icon('log-in')} লগইন</button>`}
           <button class="xl:hidden p-2 rounded-lg hover:bg-slate-100" onclick="document.getElementById('gov-nav').classList.toggle('hidden')" aria-label="মেনু">${icon('menu', 'w-5 h-5')}</button></div></div>
         <nav class="gov-nav ${navCls} ${ns.sticky === false ? '' : 'sticky top-0'} z-40" aria-label="প্রধান মেনু"><div id="gov-nav" class="hidden xl:flex max-w-7xl mx-auto px-2 flex-wrap">${pubNav}${dWhere === 'nav' ? `<div class="gov-navdate">${icon('calendar-days', 'w-4 h-4 shrink-0')}${dHtml}</div>` : ''}</div></nav>
-        ${tick.length ? `<div class="ticker-bar"><div class="max-w-7xl mx-auto flex items-stretch min-w-0 overflow-hidden"><span class="ticker-label">${icon('megaphone', 'w-4 h-4')} নোটিশ</span><div class="ticker-track"><div class="ticker-move">${[...tick, ...tick].map(n => `<a href="${this.href('public', 'notices')}" class="mx-6 whitespace-nowrap hover:underline">● ${esc(n.title)}</a>`).join('')}</div></div></div></div>` : ''}`;
+        ${tick.length ? `<div class="ticker-bar"><div class="max-w-7xl mx-auto flex items-stretch min-w-0 overflow-hidden"><span class="ticker-label">${icon('megaphone', 'w-4 h-4')} নোটিশ</span><div class="ticker-track"><div class="ticker-move">${[...tick, ...tick].map(n => `<a href="${this.href('public', 'notices')}" class="mx-6 whitespace-nowrap hover:underline">${esc(n.title)}</a>`).join('')}</div></div></div></div>` : ''}`;
     } else {
       // Dashboard top bar (Cloudflare-style): menu button (phones) + breadcrumbs on the left, quick actions on the right.
       const P = this.portals[this.route.portal], pg = P.pages.find(p => p.id === this.route.page);

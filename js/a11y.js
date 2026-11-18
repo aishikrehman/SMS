@@ -19,7 +19,7 @@ const A11y = {
     h.dataset.motion = o.motion ? 'reduce' : '';
     const base = (typeof DB !== 'undefined' && DB.s?.theme?.baseSize) || 15;
     h.style.fontSize = Math.round(base * o.size * 10) / 10 + 'px';
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.dark() ? '#0b1220' : '#006a4e');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', this.dark() ? '#0b1220' : '#ffffff');
   },
   set(k, v) { this.o[k] = v; this.save(); this.apply(); this.paint(); },
   reset() { this.o = { mode: 'default', size: 1, contrast: false, links: false, spacing: false, motion: false }; this.save(); this.apply(); this.paint(); },

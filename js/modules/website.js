@@ -8,9 +8,10 @@
 const Site = {
   /** The four headline numbers (Settings → Website & hero → statistics). */
   stats() {
-    const st = DB.s.school.stats || {};
-    // only the figures the school has entered (Settings → Website); a new institution shows none
-    return [['বোর্ড পরীক্ষায় পাসের হার', +st.passRate, bnNum(st.passRate) + '%', 'trending-up'], ['শিক্ষার্থী', +st.scholars, bnNum(+st.scholars, true), 'users'], ['শিক্ষকমণ্ডলী', +st.faculty, bnNum(st.faculty), 'presentation'], ['জিপিএ ৫.০০ প্রাপ্ত', +st.aPlus, bnNum(st.aPlus), 'trophy']].filter(r => r[1] > 0).map(([l, , v, i]) => [l, v, i]);
+    // real figures (server publicStats: record counts + the latest published result); typed-in numbers only as an explicit manual override
+    const m = DB.s.school.stats || {}, r = (DB.remote && DB.remote.stats) || {}, man = m.manual === true;
+    const pass = man ? +m.passRate : +r.passRate, stu = man ? +m.scholars : +r.students, tch = man ? +m.faculty : +r.teachers, a5 = man ? +m.aPlus : +r.gpa5;
+    return [['পাসের হার', pass, bnNum(pass) + '%', 'trending-up'], ['শিক্ষার্থী', stu, bnNum(stu, true), 'users'], ['শিক্ষক', tch, bnNum(tch), 'presentation'], ['জিপিএ ৫.০০ প্রাপ্ত', a5, bnNum(a5), 'trophy']].filter(x => Number.isFinite(x[1]) && x[1] > 0).map(([l, , v, i]) => [l, v, i]);
   },
   hero() {
     const h = DB.s.site.hero, s = DB.s.school, center = h.align === 'center';
@@ -23,13 +24,14 @@ const Site = {
         <span class="pub-ring">${logoHtml(112)}</span>
         <div class="font-heading text-2xl font-bold mt-6">${esc(s.nameBn || s.name)}</div>${s.mottoBn || s.motto ? `<div class="text-white/80 mt-1">${esc(s.mottoBn || s.motto)}</div>` : ''}
         ${facts.length ? `<div class="grid grid-cols-${facts.length} gap-3 mt-6">${facts.map(([l, v]) => `<div class="pub-fact"><b>${esc(v)}</b><span class="text-white/80">${l}</span></div>`).join('')}</div>` : ''}</div></div>`;
-    const stats = h.showStats && this.stats().length ? `<div class="pub-stats-wrap"><div class="max-w-7xl mx-auto px-4 sm:px-6"><div class="pub-stats card pub-card">${this.stats().map(([l, v, i]) => `<div class="pub-stat"><span class="pub-icon">${icon(i, 'w-6 h-6')}</span><div class="min-w-0"><div class="v">${v}</div><div class="l">${l}</div></div></div>`).join('')}</div></div></div>` : '';
+    // one statistics block only: the homepage's "একনজরে প্রতিষ্ঠান" section; the hero carries none
+    const stats = '';
     return `<section class="pub-hero ${stats ? 'has-stats' : ''} text-white" style="${bg}"><div class="max-w-7xl mx-auto px-4 sm:px-6 py-14 sm:py-20 grid lg:grid-cols-12 gap-10 items-center">
       <div class="${center ? 'lg:col-span-12 text-center mx-auto max-w-3xl' : 'lg:col-span-7'}">
         <div class="flex flex-wrap gap-2 ${center ? 'justify-center' : ''}"><span class="pub-chip">${icon('badge-check', 'w-4 h-4')} ${esc(bn(s.type))}</span>${s.founded ? `<span class="pub-chip">${icon('landmark', 'w-4 h-4')} স্থাপিত ${bnNum(s.founded)}</span>` : ''}</div>
         <h1 class="mt-5">${esc(title)}</h1>${alt ? `<div class="text-xl mt-2 text-white/80" data-noi18n>${esc(alt)}</div>` : ''}
         ${h.subtitle ? `<p class="text-lg sm:text-xl text-white/90 mt-5 max-w-2xl leading-relaxed ${center ? 'mx-auto' : ''}">${esc(h.subtitle)}</p>` : ''}
-        <div class="flex flex-wrap gap-3 mt-8 ${center ? 'justify-center' : ''}">${h.ctaText ? `<a href="${esc(App.clean(h.ctaLink))}" class="btn btn-accent shadow-lg">${icon('file-pen-line')} ${esc(h.ctaText)}</a>` : ''}${h.cta2Text ? `<a href="${esc(App.clean(h.cta2Link))}" class="btn pub-btn-outline">${icon('award')} ${esc(h.cta2Text)}</a>` : ''}</div></div>
+        <div class="flex flex-wrap gap-3 mt-8 ${center ? 'justify-center' : ''}">${h.ctaText ? `<a href="${esc(App.clean(h.ctaLink))}" class="btn btn-accent">${icon('file-pen-line')} ${esc(h.ctaText)}</a>` : ''}${h.cta2Text ? `<a href="${esc(App.clean(h.cta2Link))}" class="btn pub-btn-outline">${icon('award')} ${esc(h.cta2Text)}</a>` : ''}</div></div>
       ${emblem}
     </div></section>${stats}`;
   },

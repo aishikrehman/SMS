@@ -60,8 +60,8 @@ const Me = {
           ${u.pwDefault ? `<p class="text-amber-700 bg-amber-50 rounded-lg px-3 py-2 my-2">নিরাপত্তার জন্য প্রাথমিক পাসওয়ার্ডটি এখনই বদলে নিন।</p>` : ''}
           <form id="pw-form" class="space-y-3 mt-3">
             <div><label class="label" for="pw-cur">বর্তমান পাসওয়ার্ড</label><input id="pw-cur" class="input" type="password" name="cur" required autocomplete="current-password"></div>
-            <div><label class="label" for="pw-next">নতুন পাসওয়ার্ড</label><input id="pw-next" class="input" type="password" name="next" minlength="10" required autocomplete="new-password"><p class="text-slate-500 mt-1">কমপক্ষে ১০ অক্ষর; অক্ষর ও সংখ্যা দুটোই থাকতে হবে।</p></div>
-            <div><label class="label" for="pw-next2">নতুন পাসওয়ার্ড আবার লিখুন</label><input id="pw-next2" class="input" type="password" name="next2" minlength="10" required autocomplete="new-password"></div>
+            <div><label class="label" for="pw-next">নতুন পাসওয়ার্ড</label><input id="pw-next" class="input" type="password" name="next" minlength="6" required autocomplete="new-password"><p class="text-slate-500 mt-1">কমপক্ষে ৬ অক্ষর; অক্ষর ও সংখ্যা দুটোই থাকতে হবে।</p></div>
+            <div><label class="label" for="pw-next2">নতুন পাসওয়ার্ড আবার লিখুন</label><input id="pw-next2" class="input" type="password" name="next2" minlength="6" required autocomplete="new-password"></div>
             <button class="btn btn-primary">${icon('save')} পাসওয়ার্ড বদলান</button>
           </form>
         </section></div>`;

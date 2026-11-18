@@ -28,7 +28,7 @@ const Sync = {
     // full-page screens (forced password change, setup, offline) replace everything — never leave the login pop-up on top
     try { if (typeof Modal !== 'undefined') Modal.close(); } catch (e) { }
     document.getElementById('a11y-panel')?.classList.add('hidden');
-    try { Theme.apply({ primary: '#006a4e', accent: '#f42a41', font: 'Inter', headingFont: 'Source Serif 4', bnFont: 'Noto Serif Bengali', baseSize: 15, radius: 10, surface: '#f6f8f7' }); } catch (e) { /* plain colours */ }
+    try { Theme.apply({ primary: '#0f6b5f', accent: '#134e48', font: 'Inter', headingFont: 'Source Serif 4', bnFont: 'Noto Serif Bengali', baseSize: 15, radius: 8, surface: '#f8fafc' }); } catch (e) { /* plain colours */ }
     $('#topbar').innerHTML = '';
     $('#view').innerHTML = `<main class="min-h-screen flex items-start sm:items-center justify-center px-4 py-10">${html}</main>`;
     App.icons();
@@ -45,9 +45,7 @@ const Sync = {
   passwordPage() {
     this.shell(`<form id="pw-force" class="card w-full max-w-md p-6 space-y-4" novalidate>
       <h1 class="text-lg font-bold flex items-center gap-2">${icon('key-round', 'w-6 h-6 text-brand-600')} নতুন পাসওয়ার্ড দিন</h1>
-      <p class="text-slate-600">আপনি অস্থায়ী পাসওয়ার্ড দিয়ে লগইন করেছেন। নিরাপত্তার জন্য এখনই নিজের পাসওয়ার্ড ঠিক করুন; এরপর সব ডিভাইস থেকে আগের সেশন বন্ধ হয়ে যাবে।</p>
-      <div><label class="label" for="pf-cur">বর্তমান (অস্থায়ী) পাসওয়ার্ড</label><input class="input" id="pf-cur" name="current" type="password" autocomplete="current-password" required></div>
-      <div><label class="label" for="pf-new">নতুন পাসওয়ার্ড</label><input class="input" id="pf-new" name="next" type="password" minlength="10" autocomplete="new-password" required><p class="text-xs text-slate-500 mt-1">কমপক্ষে ১০ অক্ষর, অক্ষর ও সংখ্যা দুটোই থাকবে, ইউজার আইডি থাকবে না</p></div>
+      <div><label class="label" for="pf-new">নতুন পাসওয়ার্ড</label><input class="input" id="pf-new" name="next" type="password" minlength="6" autocomplete="new-password" required><p class="text-xs text-slate-500 mt-1">কমপক্ষে ৬ অক্ষর, অক্ষর ও সংখ্যা দুটোই থাকবে, ইউজার আইডি থাকবে না</p></div>
       <div><label class="label" for="pf-new2">নতুন পাসওয়ার্ড আবার লিখুন</label><input class="input" id="pf-new2" name="next2" type="password" autocomplete="new-password" required></div>
       <div id="pf-err" class="text-red-600 hidden" role="alert"></div>
       <div class="flex gap-2"><button class="btn btn-primary flex-1">${icon('check')} পাসওয়ার্ড বদলান</button><button type="button" class="btn btn-ghost" id="pf-out">${icon('log-out')} লগআউট</button></div>
@@ -58,7 +56,7 @@ const Sync = {
       e.preventDefault();
       const d = formData(e.target);
       if (d.next !== d.next2) return show('দুটি নতুন পাসওয়ার্ড মেলেনি।');
-      try { await DB.api('password', { current: d.current, next: d.next }); location.reload(); }
+      try { await DB.api('password', { next: d.next }); location.reload(); }   // signed in with the temporary password just now: not asked again
       catch (x) { show(x.message === 'wrong_current' ? 'বর্তমান পাসওয়ার্ড সঠিক নয়।' : x.message === 'same' ? 'নতুন পাসওয়ার্ড আগেরটির মতো হতে পারবে না।' : (x.data && x.data.message) || 'পাসওয়ার্ড বদলানো যায়নি — আবার চেষ্টা করুন।'); }
     });
   },
@@ -82,8 +80,8 @@ const Sync = {
         ${F('username', 'ইউজার আইডি *', 'required maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false"', 'ছোট হাতের ইংরেজি অক্ষর, সংখ্যা, _ বা . — ৩ থেকে ২০ অক্ষর')}
         ${F('phone', 'মোবাইল নম্বর *', 'required inputmode="tel" maxlength="14" autocomplete="tel" placeholder="01XXXXXXXXX"')}
         <div class="sm:col-span-2">${F('email', 'ই-মেইল *', 'required type="email" maxlength="120" autocomplete="email"')}</div>
-        ${F('password', 'পাসওয়ার্ড *', 'required type="password" minlength="10" autocomplete="new-password"', 'কমপক্ষে ১০ অক্ষর, অক্ষর ও সংখ্যা দুটোই থাকবে, ইউজার আইডি থাকবে না')}
-        ${F('password2', 'পাসওয়ার্ড আবার লিখুন *', 'required type="password" minlength="10" autocomplete="new-password"')}
+        ${F('password', 'পাসওয়ার্ড *', 'required type="password" minlength="6" autocomplete="new-password"', 'কমপক্ষে ৬ অক্ষর, অক্ষর ও সংখ্যা দুটোই থাকবে, ইউজার আইডি থাকবে না')}
+        ${F('password2', 'পাসওয়ার্ড আবার লিখুন *', 'required type="password" minlength="6" autocomplete="new-password"')}
       </fieldset>
       <div id="setup-err" class="text-red-600 hidden" role="alert"></div>
       <button class="btn btn-primary w-full">${icon('check')} সেটআপ সম্পন্ন করুন</button>

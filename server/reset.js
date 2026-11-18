@@ -8,12 +8,12 @@
 'use strict';
 const readline = require('node:readline');
 const config = require('./config');
-const { createStore } = require('./store');
+const { createStore, describe } = require('./store');
 
 (async () => {
   const run = require('./backup').runningServer();
   if (run && !process.argv.includes('--force')) { console.error(`The Dhee server is running (pid ${run.pid}). Stop it first.`); process.exit(1); }
-  const target = config.driver === 'sqlite' ? config.sqlitePath : config.driver === 'postgres' ? 'DATABASE_URL' : `both (${config.sqlitePath} + DATABASE_URL)`;
+  const target = describe();
   if (!process.argv.includes('--yes')) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     const ans = await new Promise(r => rl.question(`Delete ALL data in ${config.driver} store [${target}]? Type "yes": `, r));

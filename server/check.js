@@ -33,15 +33,26 @@ if (only !== '--syntax') {
   const [maj, min] = process.versions.node.split('.').map(Number);
   if (maj < 22 || (maj === 22 && min < 13)) errors.push(`Node.js ${process.versions.node} is too old — 22.13 or newer is required.`);
   if (!(config.port > 0 && config.port < 65536)) errors.push(`PORT "${env.PORT}" is not a valid port.`);
-  if (!['sqlite', 'postgres', 'both'].includes(config.driver)) errors.push(`DB_DRIVER "${config.driver}" must be sqlite, postgres or both.`);
-  if (config.driver === 'both' && !['sqlite', 'postgres'].includes(config.primary)) errors.push(`DB_PRIMARY "${config.primary}" must be sqlite or postgres.`);
-  if (config.driver !== 'sqlite') {
-    if (!config.databaseUrl) errors.push('DATABASE_URL is required for DB_DRIVER=postgres or both.');
+  const { describe, secondaryOf, DRIVERS } = require('./store');
+  if (![...DRIVERS, 'both'].includes(config.driver)) errors.push(`DB_DRIVER "${config.driver}" must be mysql, postgres or both.`);
+  let used = [config.driver];
+  if (config.driver === 'both') {
+    used = [config.primary, secondaryOf(config.primary)];
+    if (!DRIVERS.includes(config.primary)) errors.push(`DB_PRIMARY "${config.primary}" must be mysql or postgres.`);
+  }
+  if (used.includes('postgres')) {
+    if (!config.databaseUrl) errors.push('DATABASE_URL is required when PostgreSQL is used.');
     else if (!/^postgres(ql)?:\/\//.test(config.databaseUrl)) errors.push('DATABASE_URL must start with postgres://');
     try { require.resolve('pg'); } catch (_) { errors.push('The "pg" package is not installed (npm install pg).'); }
   }
+  if (used.includes('mysql')) {
+    try { require('./store/mysql').connOptions(config.mysql); }
+    catch (e) { errors.push(e.message); }
+    if (config.mysql.url && (env.MYSQL_HOST || env.MYSQL_DATABASE)) warns.push('Both MYSQL_URL and MYSQL_HOST/MYSQL_DATABASE are set: MYSQL_URL wins.');
+    try { require.resolve('mysql2'); } catch (_) { errors.push('The "mysql2" package is not installed (npm install mysql2).'); }
+  }
   const writable = (dir, what) => { try { fs.mkdirSync(dir, { recursive: true }); const t = path.join(dir, `.check-${process.pid}`); fs.writeFileSync(t, 'x'); fs.rmSync(t); } catch (e) { errors.push(`${what} folder ${dir} is not writable: ${e.message}`); } };
-  if (config.driver !== 'postgres') writable(path.dirname(config.sqlitePath), 'SQLITE_PATH');
+  writable(config.dataDir, 'DATA_DIR');
   writable(config.backupDir, 'BACKUP_DIR');
   writable(config.logDir, 'LOG_DIR');
   const pos = (name, v) => { if (!(Number.isFinite(v) && v > 0)) errors.push(`${name} must be a positive number (now "${env[name]}").`); };
@@ -60,10 +71,10 @@ if (only !== '--syntax') {
     if (env.PAY_API_KEY && !env.PAY_WEBHOOK_SECRET) warns.push('PAY_API_KEY is set but PAY_WEBHOOK_SECRET is not: online checkout stays off until the gateway callback can be verified.');
     if (!env.SMS_API_URL && !env.EMAIL_API_URL) warns.push('No SMS_API_URL / EMAIL_API_URL: password recovery by one-time code is unavailable (the office resets passwords instead).');
   }
-  if (path.resolve(config.backupDir) === path.dirname(config.sqlitePath)) warns.push('BACKUP_DIR is the database folder; keep backups on another disk or copy them off the server.');
+  if (path.resolve(config.backupDir) === config.dataDir) warns.push('BACKUP_DIR is the data folder; keep backups on another disk or copy them off the server.');
   for (const w of warns) console.warn(`! ${w}`);
   for (const e of errors) console.error(`✗ ${e}`);
-  console.log(errors.length ? `Configuration: ${errors.length} error(s).` : `Configuration OK (${config.driver}${config.driver !== 'postgres' ? ` · ${config.sqlitePath}` : ''} · backups ${config.backupDir} · logs ${config.logDir}).`);
+  console.log(errors.length ? `Configuration: ${errors.length} error(s).` : `Configuration OK (${config.driver} · ${describe()} · backups ${config.backupDir} · logs ${config.logDir}).`);
   bad += errors.length;
 }
 process.exit(bad ? 1 : 0);

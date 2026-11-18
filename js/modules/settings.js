@@ -6,12 +6,22 @@
    ========================================================================== */
 
 const THEME_PRESETS = {
-  'বাংলাদেশ সবুজ (ডিফল্ট)': { primary: '#006a4e', accent: '#f42a41', surface: '#f6f8f7' },
-  'গাঢ় টিল': { primary: '#0f766e', accent: '#e11d48', surface: '#f5f8f8' },
+  'শান্ত টিল (ডিফল্ট)': { primary: '#0f6b5f', accent: '#134e48', surface: '#f8fafc' },
+  'স্লেট নীল': { primary: '#3b5b8c', accent: '#2c4468', surface: '#f8fafc' },
+  'বাংলাদেশ সবুজ': { primary: '#006a4e', accent: '#f42a41', surface: '#f6f8f7' },
   'নেভি ব্লু': { primary: '#1e3a8a', accent: '#dc2626', surface: '#f6f7fb' },
   'মেরুন': { primary: '#7f1d1d', accent: '#ca8a04', surface: '#faf7f6' },
   'মাদ্রাসা সবুজ': { primary: '#14532d', accent: '#b45309', surface: '#f6f8f5' },
 };
+/** One-time switch: an install still on the old Bangladesh green/red default moves to the calm minimal default. Custom themes are left alone. */
+DB.addSeeder('themeMinimalV1', s => {
+  const t = s.theme;
+  if (t && String(t.primary).toLowerCase() === '#006a4e' && String(t.accent).toLowerCase() === '#f42a41') {
+    Object.assign(t, { primary: '#0f6b5f', accent: '#134e48', surface: '#f8fafc', radius: 8 });
+    if (s.site?.navStyle?.theme === 'accent') s.site.navStyle.theme = 'white';
+  }
+  return true;
+});
 const FLAG_GROUPS = {
   'পাবলিক ওয়েবসাইট': { onlineAdmissions: 'অনলাইন ভর্তি ফরম', publicResults: 'পাবলিক ফলাফল পোর্টাল', gallery: 'ফটো গ্যালারি', careers: 'চাকরি ও নিয়োগ আবেদন', onlineServices: 'অনলাইন সেবা ডেস্ক', noticeTicker: 'চলমান নোটিশ টিকার' },   // maintenance: সিস্টেম → রক্ষণাবেক্ষণ ও রিসেট (rootops.js)
   'পরিশোধ': { gatewayBkash: 'বিকাশ', gatewayNagad: 'নগদ', gatewayRocket: 'রকেট', gatewayCard: 'Visa / Mastercard', installments: 'কিস্তি পরিকল্পনা', autoReminders: 'পরিশোধের শেষ তারিখের স্বয়ংক্রিয় এসএমএস', lateFines: 'স্বয়ংক্রিয় বিলম্ব জরিমানা' },
@@ -92,10 +102,10 @@ const Settings = {
         <div><label class="label">প্রধান বোতামের লেখা</label><input class="input" name="ctaText" value="${esc(h.ctaText)}"></div><div><label class="label">প্রধান বোতামের লিংক</label><input class="input" name="ctaLink" value="${esc(h.ctaLink)}"></div>
         <div><label class="label">দ্বিতীয় বোতামের লেখা</label><input class="input" name="cta2Text" value="${esc(h.cta2Text)}"></div><div><label class="label">দ্বিতীয় বোতামের লিংক</label><input class="input" name="cta2Link" value="${esc(h.cta2Link)}"></div>
         <div><label class="label">লেখার বিন্যাস</label><select class="select" name="align"><option value="left" ${h.align === 'left' ? 'selected' : ''}>বাম</option><option value="center" ${h.align === 'center' ? 'selected' : ''}>মাঝখানে</option></select></div>
-        <label class="flex items-center gap-2 text-sm pt-6"><input type="checkbox" name="showStats" ${h.showStats ? 'checked' : ''}> পরিসংখ্যান টাইল দেখান</label>
         <label class="sm:col-span-2 flex items-center gap-2 text-sm card p-3"><input type="checkbox" name="ticker" ${DB.s.site.ticker !== false && DB.s.featureFlags.noticeTicker !== false ? 'checked' : ''}> <span><b>চলমান নোটিশ মার্কি দেখান</b> মেনুর নিচে</span></label>
-        <div class="sm:col-span-2"><div class="label">পটভূমির ছবি</div><div class="flex items-center gap-3">${h.image ? `<img src="${h.image}" class="h-16 w-28 object-cover rounded">` : '<span class="text-xs text-slate-400">নেই — নকশাসহ একরঙা ব্র্যান্ড রং</span>'}<label class="btn btn-ghost btn-sm cursor-pointer">${icon('upload')} আপলোড<input type="file" accept="image/*" class="hidden" onchange="Settings.heroImg(this.files[0])"></label>${h.image ? `<button type="button" class="btn btn-ghost btn-sm" onclick="DB.s.site.hero.image=null;Settings.save('হিরো ছবি অপসারণ করা হয়েছে।')">${icon('trash-2')}</button>` : ''}</div></div>
-        <div class="sm:col-span-2 grid grid-cols-4 gap-2">${[['passRate', 'পাসের হার %'], ['scholars', 'শিক্ষার্থী'], ['faculty', 'শিক্ষকমণ্ডলী'], ['aPlus', 'জিপিএ-৫ প্রাপ্ত']].map(([k, l]) => `<div><label class="label">${l}</label><input class="input" name="stat_${k}" type="number" step="0.1" value="${s.stats[k]}"></div>`).join('')}</div>
+        <div class="sm:col-span-2"><div class="label">পটভূমির ছবি</div><div class="flex items-center gap-3">${h.image ? `<img src="${h.image}" class="h-16 w-28 object-cover rounded">` : '<span class="text-xs text-slate-400">নেই — একরঙা পটভূমি</span>'}<label class="btn btn-ghost btn-sm cursor-pointer">${icon('upload')} আপলোড<input type="file" accept="image/*" class="hidden" onchange="Settings.heroImg(this.files[0])"></label>${h.image ? `<button type="button" class="btn btn-ghost btn-sm" onclick="DB.s.site.hero.image=null;Settings.save('হিরো ছবি অপসারণ করা হয়েছে।')">${icon('trash-2')}</button>` : ''}</div></div>
+        <fieldset class="sm:col-span-2 card p-3"><label class="flex items-center gap-2 mb-2"><input type="checkbox" name="statManual" ${s.stats?.manual ? 'checked' : ''}> <b>আসল তথ্যের বদলে হাতে লেখা পরিসংখ্যান দেখান</b></label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${[['passRate', 'পাসের হার %'], ['scholars', 'শিক্ষার্থী'], ['faculty', 'শিক্ষক'], ['aPlus', 'জিপিএ-৫ প্রাপ্ত']].map(([k, l]) => `<div><label class="label">${l}</label><input class="input" name="stat_${k}" type="number" min="0" step="0.1" value="${+(s.stats || {})[k] || 0}"></div>`).join('')}</div></fieldset>
         <div class="sm:col-span-2"><button class="btn btn-primary">${icon('save')} হোমপেজ সংরক্ষণ করুন</button> <a class="btn btn-ghost" href="/" target="_blank">${icon('external-link')} সাইট দেখুন</a></div></form>
       <div class="space-y-5"><div class="card"><div class="px-5 py-3 border-b border-slate-100 font-semibold flex items-center gap-2">ফটো গ্যালারি <span class="text-xs text-slate-400 font-normal">${bnNum(DB.s.site.gallery.length)}টি ছবি</span><label class="btn btn-primary btn-sm ml-auto cursor-pointer">${icon('image-plus')} ছবি আপলোড করুন<input type="file" accept="image/*" multiple class="hidden" onchange="Settings.galleryUpload(this.files)"></label></div>
           <div class="p-4 grid grid-cols-3 sm:grid-cols-4 gap-2">${DB.s.site.gallery.map(g => `<div class="relative group"><img src="${galleryImg(g)}" class="w-full aspect-[4/3] object-cover rounded-lg"><div class="text-[10px] text-slate-500 truncate mt-0.5">${esc(g.album)} · ${esc(g.title)}</div><button class="absolute top-1 right-1 hidden group-hover:flex btn btn-danger btn-sm !p-1" onclick="Settings.galleryDel('${g.id}')">${icon('x', 'w-3 h-3')}</button></div>`).join('')}</div></div></div></div>`;
@@ -245,8 +255,10 @@ const settingsPage = {
     }
     if (t === 'website') $('#set-hero').addEventListener('submit', e => {
       e.preventDefault(); const f = formData(e.target), h = DB.s.site.hero;
-      ['title', 'subtitle', 'ctaText', 'ctaLink', 'cta2Text', 'cta2Link', 'align'].forEach(k => h[k] = f[k]); h.showStats = !!e.target.showStats.checked; DB.s.site.ticker = DB.s.featureFlags.noticeTicker = !!e.target.ticker.checked;
-      ['passRate', 'scholars', 'faculty', 'aPlus'].forEach(k => DB.s.school.stats[k] = +f['stat_' + k]);
+      ['title', 'subtitle', 'ctaText', 'ctaLink', 'cta2Text', 'cta2Link', 'align'].forEach(k => h[k] = f[k]); DB.s.site.ticker = DB.s.featureFlags.noticeTicker = !!e.target.ticker.checked;
+      DB.s.school.stats = DB.s.school.stats || {};
+      ['passRate', 'scholars', 'faculty', 'aPlus'].forEach(k => DB.s.school.stats[k] = +f['stat_' + k] || 0);
+      DB.s.school.stats.manual = !!e.target.statManual.checked;
       Settings.save('হোমপেজ আপডেট করা হয়েছে।', 'hero section');
     });
     if (t === 'structure') $('#set-rooms').addEventListener('submit', e => { e.preventDefault(); const f = formData(e.target); Object.assign(DB.s.school.roomRules, { maxPerRoom: +f.maxPerRoom, examSeatsPerBench: +f.examSeatsPerBench, keepLabsForPractical: !!e.target.keepLabsForPractical.checked }); Settings.save('কক্ষের নিয়ম সংরক্ষিত হয়েছে।'); });

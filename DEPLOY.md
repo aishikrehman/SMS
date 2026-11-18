@@ -11,7 +11,7 @@
 5. প্রথমবার চালু করা ও প্রাথমিক সেটআপ পাতা
 6. সার্ভিস হিসেবে চালানো (PM2, NSSM, systemd, Docker)
 7. HTTPS: Nginx বা Caddy রিভার্স প্রক্সি ও `TRUST_PROXY`
-8. PostgreSQL-এ যাওয়া ও তথ্য স্থানান্তর
+8. ডেটাবেস: MySQL / MariaDB বসানো, পুরোনো SQLite ডেটা আনা, PostgreSQL
 9. ব্যাকআপ ও পুনরুদ্ধার
 10. নতুন সংস্করণে হালনাগাদ
 11. নিরাপত্তা: সার্ভার কী কী নিয়ন্ত্রণ করে
@@ -24,8 +24,9 @@
 - একটি সার্ভার (ভিপিএস বা প্রতিষ্ঠানের নিজস্ব কম্পিউটার), যা সব সময় চালু থাকবে। ৫০০–২০০০ শিক্ষার্থীর জন্য ২ সিপিইউ, ২–৪ জিবি র‍্যাম ও ২০ জিবি ডিস্ক যথেষ্ট।
 - Windows Server 2019/2022, অথবা Ubuntu 22.04/24.04 LTS।
 - একটি ডোমেইন বা সাবডোমেইন (যেমন `sms.school.edu.bd`), যার DNS-এর A রেকর্ড সার্ভারের আইপিতে নির্দেশ করে।
-- Node.js **২২.১৩ বা নতুন** (এতে SQLite আগে থেকেই আছে, আলাদা কিছু কম্পাইল করতে হয় না)।
-- ঐচ্ছিক: PostgreSQL ১৪+, এসএমএস বা ই-মেইল সেবাদাতা (পাসওয়ার্ড পুনরুদ্ধারের কোডের জন্য)।
+- Node.js **২২.১৩ বা নতুন**।
+- **MySQL ৫.৭/৮.x অথবা MariaDB ১০.৩+** (একই সার্ভারে বা আলাদা; ৮ নম্বর অংশ)।
+- ঐচ্ছিক: PostgreSQL ১৪+ (MySQL-এর বদলে), এসএমএস বা ই-মেইল সেবাদাতা (পাসওয়ার্ড পুনরুদ্ধারের কোডের জন্য)।
 
 ## ২. Node.js বসানো
 
@@ -66,7 +67,7 @@ cd C:\dhee
 npm ci --omit=dev
 ```
 
-`npm ci --omit=dev` কেবল চালানোর জন্য দরকারি প্যাকেজ বসায় (`express`; PostgreSQL ব্যবহার করলে ঐচ্ছিক `pg`)।
+`npm ci --omit=dev` কেবল চালানোর জন্য দরকারি প্যাকেজ বসায় (`express`, MySQL/MariaDB-র জন্য `mysql2`; PostgreSQL ব্যবহার করলে ঐচ্ছিক `pg`)।
 
 ## ৪. কনফিগারেশন
 
@@ -82,7 +83,8 @@ cp .env.example .env          # Windows: copy .env.example .env
 | `TRUST_PROXY=true` | সামনে রিভার্স প্রক্সি থাকলে (আসল আইপি ও Secure কুকির জন্য জরুরি) |
 | `BACKUP_DIR` | ব্যাকআপ অন্য ডিস্কে রাখতে |
 | `SMS_API_URL` … / `EMAIL_API_URL` … | পাসওয়ার্ড পুনরুদ্ধারের কোড পাঠাতে |
-| `DB_DRIVER`, `DATABASE_URL` | PostgreSQL ব্যবহার করলে (৮ নম্বর অংশ) |
+| `MYSQL_URL` | **অবশ্যই**: MySQL/MariaDB-র ঠিকানা (৮ নম্বর অংশ) |
+| `DB_DRIVER`, `DATABASE_URL` | PostgreSQL ব্যবহার করলে (৮.৭) |
 | `ALLOW_DEMO_LOAD=false` | **চালু প্রতিষ্ঠানে অবশ্যই।** এতে রুট ব্যবহারকারীর "পরীক্ষামূলক ডেটা" পাতার "ডেমো ডেটা লোড করুন" ও "সব ডেটা মুছে নতুন করে শুরু" বোতাম বন্ধ থাকে |
 | `IT_OFFICE_PHONE` / `IT_OFFICE_EMAIL` | পাসওয়ার্ড সহায়তার নতুন অনুরোধ এলে আইটি অফিসকে এসএমএস / ই-মেইলে জানাতে (অ্যাপের ফিচার ও সেটিংস → আইটি অফিস থেকেও দেওয়া যায়) |
 | `PAY_API_KEY`, `PAY_WEBHOOK_SECRET` | অনলাইন পেমেন্ট চালু করলে: পেমেন্ট সার্ভারের গোপন কী এবং গেটওয়ের কলব্যাক (`POST /api/pay/webhook`) যাচাইয়ের গোপন শব্দ। গেটওয়েতে কলব্যাকের ঠিকানা দিন `https://আপনার-ডোমেইন/api/pay/webhook` |
@@ -109,7 +111,7 @@ npm start
 
 পরের ধাপগুলো (অধ্যক্ষ, শ্রেণি, বিষয়, ফি, শিক্ষক, শিক্ষার্থী) [HANDOVER.md](HANDOVER.md)-এ আছে।
 
-> **সতর্কতা:** `npm run seed:demo` একটি পূর্ণ ডেমো তথ্যভান্ডার লেখে (প্রদর্শন ও পরীক্ষার জন্য)। এটি **কখনো চালু প্রতিষ্ঠানের ডেটাবেসে চালাবেন না**, কারণ এতে প্রকৃত তথ্য নষ্ট বা মিশে যেতে পারে। শুধু আলাদা পরীক্ষামূলক ডেটাবেসে (`SQLITE_PATH=...` দিয়ে) ব্যবহার করুন।
+> **সতর্কতা:** `npm run seed:demo` একটি পূর্ণ ডেমো তথ্যভান্ডার লেখে (প্রদর্শন ও পরীক্ষার জন্য)। এটি **কখনো চালু প্রতিষ্ঠানের ডেটাবেসে চালাবেন না**, কারণ এতে প্রকৃত তথ্য নষ্ট বা মিশে যেতে পারে। শুধু আলাদা পরীক্ষামূলক ডেটাবেসে (`--mysql-url mysql://…/dhee_demo` দিয়ে) ব্যবহার করুন।
 
 > **পরীক্ষামূলক ডেটা (অ্যাপের ভেতর থেকে):** রুট ব্যবহারকারী → সিস্টেম → পরীক্ষামূলক ডেটা পাতায় নিশ্চিতকরণ বাক্য লিখে ডেমো ডেটা লোড করা বা সব মুছে নতুন করে শুরু করা যায়। দুটির আগেই `backups/`-এ স্বয়ংক্রিয় ব্যাকআপ (`…-predemo` / `…-prereset`) নেওয়া হয়, রুট ব্যবহারকারীর অ্যাকাউন্ট ও পাসওয়ার্ড থাকে, অন্য সবাই লগআউট হন, আর অডিট লগে লেখা থাকে। চালু প্রতিষ্ঠানে `.env`-এ `ALLOW_DEMO_LOAD=false` দিয়ে এটি বন্ধ রাখুন।
 >
@@ -163,12 +165,12 @@ Get-Service DheeSMS
 ### Docker (ঐচ্ছিক)
 
 ```bash
-docker compose up -d                        # SQLite
-docker compose --profile postgres up -d     # PostgreSQL সহ (.env-এ POSTGRES_PASSWORD, DB_DRIVER, DATABASE_URL দিন)
+docker compose up -d                        # MariaDB সহ (.env-এ MYSQL_PASSWORD ও MYSQL_ROOT_PASSWORD দিন)
+docker compose --profile postgres up -d     # PostgreSQL (.env-এ POSTGRES_PASSWORD, DB_DRIVER=postgres, DATABASE_URL দিন)
 docker compose logs -f app
 ```
 
-ডেটা, ব্যাকআপ ও লগ নামযুক্ত volume-এ থাকে (`dhee-data`, `dhee-backups`, `dhee-logs`)। অ্যাপ কেবল `127.0.0.1:3000`-এ শোনে, তাই সামনে Caddy বা Nginx দিন।
+ডেটা, ব্যাকআপ ও লগ নামযুক্ত volume-এ থাকে (`dhee-mariadb`, `dhee-backups`, `dhee-logs`, `dhee-data`)। অ্যাপ কেবল `127.0.0.1:3000`-এ শোনে, তাই সামনে Caddy বা Nginx দিন।
 
 ## ৭. HTTPS: রিভার্স প্রক্সি
 
@@ -242,33 +244,95 @@ sudo certbot --nginx -d sms.school.edu.bd       # HTTPS চালু ও স্�
 sudo ufw allow OpenSSH && sudo ufw allow 80,443/tcp && sudo ufw enable
 ```
 
-## ৮. PostgreSQL-এ যাওয়া
+## ৮. ডেটাবেস: MySQL / MariaDB
 
-SQLite এক সার্ভারের জন্য যথেষ্ট। বড় প্রতিষ্ঠান বা আলাদা ডেটাবেস সার্ভার থাকলে PostgreSQL ব্যবহার করা যায়।
+Dhee SMS-এর ডেটা থাকে **MySQL** (৫.৭ বা ৮.x) অথবা **MariaDB** (১০.৩ বা নতুন) ডেটাবেসে; দুটির জন্য একই ড্রাইভার। ডেটাবেস ও সব টেবিল **utf8mb4** অক্ষরসেটে হতে হবে, নইলে বাংলা লেখা নষ্ট হবে। টেবিলগুলো সার্ভার প্রথমবার চালু হলে নিজেই তৈরি করে (`server/store/mysql.sql`)। ব্যবহারকারীর অনুমতি থাকলে ডেটাবেসও নিজে তৈরি করে।
+
+### ৮.১ Ubuntu-তে MariaDB বসানো
+
+```bash
+sudo apt update && sudo apt install -y mariadb-server
+sudo mysql_secure_installation          # root পাসওয়ার্ড, অপ্রয়োজনীয় অ্যাকাউন্ট মুছে ফেলা
+```
+
+`/etc/mysql/mariadb.conf.d/60-dhee.cnf` ফাইল বানিয়ে লিখুন, তারপর `sudo systemctl restart mariadb`:
+
+```ini
+[mysqld]
+character-set-server = utf8mb4
+collation-server     = utf8mb4_unicode_ci
+max_allowed_packet   = 64M
+bind-address         = 127.0.0.1
+```
+
+(MySQL 8 হলে `sudo apt install -y mysql-server`, আর একই লাইনগুলো `/etc/mysql/mysql.conf.d/mysqld.cnf`-এর `[mysqld]`-এ।)
+
+### ৮.২ Windows-এ MariaDB বসানো
+
+1. <https://mariadb.org/download> থেকে Windows-এর MSI (x64) নামিয়ে চালান। root পাসওয়ার্ড দিন, "Install as service" চালু রাখুন, "UTF8 as default server's character set" টিক দিন।
+2. ইনস্টল ফোল্ডারের ডেটা ফোল্ডারে থাকা `my.ini`-এর `[mysqld]` অংশে যোগ করুন, তারপর Services থেকে MariaDB রিস্টার্ট করুন:
+
+```ini
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+max_allowed_packet=64M
+```
+
+### ৮.৩ ডেটাবেস ও ব্যবহারকারী তৈরি
+
+`sudo mysql` (Windows-এ Start মেনু → "MySQL Client (MariaDB)") খুলে:
+
+```sql
+CREATE DATABASE dhee CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'dhee'@'localhost' IDENTIFIED BY 'শক্ত-পাসওয়ার্ড';
+GRANT ALL PRIVILEGES ON dhee.* TO 'dhee'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+Node যদি `127.0.0.1` দিয়ে সংযোগ করে এবং সার্ভার তাকে আলাদা হোস্ট ধরে, তাহলে `'dhee'@'127.0.0.1'`-এর জন্যও একই দুটি লাইন চালান।
+
+### ৮.৪ cPanel হোস্টিং
+
+1. cPanel → **MySQL® Databases** → নতুন ডেটাবেস (নাম হবে যেমন `cpuser_dhee`)।
+2. একই পাতায় নতুন ব্যবহারকারী (`cpuser_dhee`) ও পাসওয়ার্ড বানান, তারপর **Add User To Database** → **ALL PRIVILEGES**।
+3. phpMyAdmin → ডেটাবেস → Operations → Collation `utf8mb4_unicode_ci` নিশ্চিত করুন।
+4. শেয়ার্ড হোস্টিংয়ে `max_allowed_packet` বদলানো যায় না; অনেক বড় প্রতিষ্ঠানের জন্য ভিপিএস নিন। সার্ভার চালু হওয়ার সময় মান ছোট হলে সতর্কবার্তা দেয়।
+5. Node অ্যাপ cPanel-এর **Setup Node.js App** দিয়ে চালান; `.env`-এ `MYSQL_URL=mysql://cpuser_dhee:পাসওয়ার্ড@localhost:3306/cpuser_dhee`।
+
+### ৮.৫ `.env`-এ সংযোগ
+
+```
+DB_DRIVER=mysql
+MYSQL_URL=mysql://dhee:শক্ত-পাসওয়ার্ড@localhost:3306/dhee
+```
+
+পাসওয়ার্ডে বিশেষ চিহ্ন থাকলে URL-এ এনকোড করে লিখুন (`@` → `%40`, `#` → `%23`, `:` → `%3A`, `/` → `%2F`), অথবা আলাদা আলাদা দিন: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`। এরপর `npm run check`। MySQL-এর তথ্য না দিলে সার্ভার চালু হয় না এবং বাংলা ও ইংরেজিতে কী দিতে হবে তা জানায়।
+
+**max_allowed_packet:** প্রতিটি সংগ্রহ (যেমন সব শিক্ষার্থী) একটি SQL বার্তায় লেখা হয়। তাই `max_allowed_packet` অবশ্যই `KEY_MAX_MB`-এর (২৫ MB) চেয়ে বড় হতে হবে; ৬৪M দিন। ছোট হলে সার্ভার শুরুতে সতর্ক করে, আর বড় সংগ্রহ লেখার সময় পরিষ্কার ত্রুটিবার্তা দেয় (তথ্য আংশিক লেখা হয় না)।
+
+### ৮.৬ পুরোনো SQLite ডেটা আনা
+
+আগের সংস্করণ তথ্য রাখত `data/dhee.sqlite` ফাইলে। নতুন সংস্করণে একবার সেটি MySQL/MariaDB-তে আনতে হয়। ফাইলটি শুধু পড়া হয়, বদলানো হয় না।
+
+```bash
+sudo systemctl stop dhee                     # আগে সার্ভার বন্ধ করুন (Windows: Stop-Service DheeSMS / Ctrl+C)
+# .env-এ DB_DRIVER=mysql ও MYSQL_URL দিন (৮.৫), তারপর:
+npm run migrate -- --from-sqlite data/dhee.sqlite
+npm run check
+sudo systemctl start dhee
+```
+
+কপি শেষে প্রতিটি কী ও revision নম্বর যাচাই করা হয়। লক্ষ্য ডেটাবেসে আগে থেকে তথ্য থাকলে কমান্ড থেমে যায়; ইচ্ছাকৃতভাবে মুছে লিখতে `--force` দিন। সেশন আসে না, তাই সবাইকে আবার লগইন করতে হবে। পুরোনো `.sqlite` ফাইলটি নিরাপদ জায়গায় কিছুদিন রেখে দিন।
+
+### ৮.৭ PostgreSQL (ঐচ্ছিক)
 
 ```bash
 sudo apt install -y postgresql
 sudo -u postgres psql -c "CREATE USER dhee WITH PASSWORD 'শক্ত-পাসওয়ার্ড';"
-sudo -u postgres psql -c "CREATE DATABASE dhee OWNER dhee;"
-npm install pg                          # npm ci-তেও optional হিসেবে আসে
+sudo -u postgres psql -c "CREATE DATABASE dhee OWNER dhee ENCODING 'UTF8';"
 ```
 
-বিদ্যমান SQLite তথ্য স্থানান্তর:
-
-```bash
-sudo systemctl stop dhee                # আগে সার্ভার বন্ধ করুন
-npm run backup                          # নিরাপত্তার জন্য একটি ব্যাকআপ
-DATABASE_URL=postgres://dhee:পাসওয়ার্ড@localhost:5432/dhee npm run migrate -- --from sqlite --to postgres
-```
-
-তারপর `.env`-এ লিখুন:
-
-```
-DB_DRIVER=postgres
-DATABASE_URL=postgres://dhee:পাসওয়ার্ড@localhost:5432/dhee
-```
-
-এরপর `npm run check` চালিয়ে সার্ভার আবার চালু করুন। স্থানান্তরের সময় প্রতিটি কী-র revision নম্বর ঠিক থাকে এবং কপি শেষে যাচাই করা হয়। সেশন কপি হয় না, তাই সবাইকে আবার লগইন করতে হবে। `DB_DRIVER=both` দিলে প্রতিটি লেখা দুই ডেটাবেসেই যায়, আর পড়া হয় `DB_PRIMARY` থেকে। এটি পরিবর্তনের সময়ের জন্য উপযোগী।
+`.env`-এ `DB_DRIVER=postgres` ও `DATABASE_URL=postgres://dhee:পাসওয়ার্ড@localhost:5432/dhee`। MySQL থেকে তথ্য সরাতে: `npm run migrate -- --from mysql --to postgres` (উল্টোটাও হয়)। `DB_DRIVER=both` দিলে প্রতিটি লেখা MySQL ও PostgreSQL দুটিতেই যায়, আর পড়া হয় `DB_PRIMARY` (ডিফল্ট `mysql`) থেকে। এটি পরিবর্তনের সময়ের জন্য উপযোগী।
 
 ## ৯. ব্যাকআপ ও পুনরুদ্ধার
 
@@ -276,8 +340,7 @@ DATABASE_URL=postgres://dhee:পাসওয়ার্ড@localhost:5432/dhee
 
 সার্ভার প্রতিদিন `BACKUP_HOUR`-এর (ডিফল্ট রাত ২টা, সার্ভারের স্থানীয় সময়) পর একবার ব্যাকআপ নেয়:
 
-- SQLite: `backups/dhee-YYYY-MM-DD.sqlite`। এটি `VACUUM INTO` দিয়ে নেওয়া একটি সম্পূর্ণ, সরাসরি খোলা যায় এমন কপি; সার্ভার চলার সময়ও নিরাপদ।
-- PostgreSQL: `backups/dhee-YYYY-MM-DD.json.gz` (সব সারির gzip করা JSON)।
+- `backups/dhee-YYYY-MM-DD.json.gz`: সব সারির gzip করা JSON (MySQL/MariaDB ও PostgreSQL দুটিতেই)। লেখার পর ফাইলটি আবার পড়ে যাচাই করা হয়। চাইলে এর পাশাপাশি `mariadb-dump --single-transaction dhee` দিয়েও ডাম্প রাখতে পারেন।
 
 `BACKUP_KEEP_DAYS` (ডিফল্ট ৩০) দিনের পুরোনো ব্যাকআপ মুছে যায়, তবে সর্বশেষ তিনটি সবসময় থাকে। ব্যাকআপ ফোল্ডার নিয়মিত সার্ভারের বাইরে কপি করুন (অন্য কম্পিউটার, এক্সটার্নাল ডিস্ক বা ক্লাউড স্টোরেজ, এনক্রিপ্ট করে)। সার্ভার নষ্ট হলে শুধু সার্ভারে থাকা ব্যাকআপ কাজে আসবে না।
 
@@ -301,13 +364,13 @@ npm run backup
 
 ```bash
 sudo systemctl stop dhee                         # বা: pm2 stop dhee / Stop-Service DheeSMS
-npm run restore -- dhee-2026-10-16.sqlite        # BACKUP_DIR-এর ফাইলের নাম, অথবা পূর্ণ পথ
+npm run restore -- dhee-2026-10-16.json.gz       # BACKUP_DIR-এর ফাইলের নাম, অথবা পূর্ণ পথ
 sudo systemctl start dhee
 ```
 
 - সার্ভার চালু থাকলে restore কাজ করে না, কারণ সার্ভার মেমরির কপি আবার লিখে দিত। Windows-এ সার্ভার হঠাৎ বন্ধ হলে পুরোনো pid ফাইল থেকে যেতে পারে; নিশ্চিত হলে `--force` দিন।
 - পুনরুদ্ধারের ঠিক আগে বর্তমান তথ্যের একটি `-prerestore` ব্যাকআপ স্বয়ংক্রিয়ভাবে নেওয়া হয়, যাতে ভুল হলে ফেরত আসা যায়।
-- `.sqlite` ও `.json.gz` দুই ধরনের ব্যাকআপই যেকোনো ড্রাইভারে (SQLite বা PostgreSQL) পুনরুদ্ধার করা যায়।
+- `.json.gz` ব্যাকআপ MySQL/MariaDB বা PostgreSQL যেকোনোটিতে পুনরুদ্ধার করা যায়। পুরোনো সংস্করণের `.sqlite` ব্যাকআপ restore দিয়ে নয়, `npm run migrate -- --from-sqlite <ফাইল>` দিয়ে আনুন (৮.৬)।
 - পুনরুদ্ধারের পর সবাইকে আবার লগইন করতে হয়।
 - প্রশ্ন ছাড়া চালাতে `--yes` দিন। Docker-এ: `docker compose stop app && docker compose run --rm app npm run restore -- ফাইল --yes && docker compose start app`
 
@@ -352,9 +415,11 @@ curl -s http://127.0.0.1:3000/api/health
 | সমস্যা | কী দেখবেন |
 |---|---|
 | সাইট খোলে না | `systemctl status dhee` / `pm2 status` / `Get-Service DheeSMS`; তারপর `curl http://127.0.0.1:3000/api/health` |
-| `/api/health` থেকে 503 আসে | ডেটাবেস সাড়া দিচ্ছে না: ডিস্ক ভরা কি না, PostgreSQL চালু কি না, `DATABASE_URL` ঠিক কি না |
+| `/api/health` থেকে 503 আসে | ডেটাবেস সাড়া দিচ্ছে না: MariaDB/MySQL (বা PostgreSQL) সার্ভিস চালু কি না, `MYSQL_URL` / `DATABASE_URL` ঠিক কি না, ডিস্ক ভরা কি না |
+| চালুর সময় "MySQL/MariaDB-র সংযোগ তথ্য দেওয়া নেই" | `.env`-এ `MYSQL_URL` দিন (৮.৫) |
+| "larger than … max_allowed_packet" | MySQL/MariaDB-তে `max_allowed_packet=64M` দিয়ে ডেটাবেস রিস্টার্ট করুন (৮.১/৮.২) |
 | "cannot listen" / EADDRINUSE | ওই পোর্টে অন্য প্রোগ্রাম চলছে, বা আগের সার্ভার এখনো চালু; `PORT` বদলান অথবা আগেরটি বন্ধ করুন |
-| Node সংস্করণের ত্রুটি / `node:sqlite` পাওয়া যায় না | Node ২২.১৩ বা নতুন সংস্করণ বসান (`node --version`) |
+| Node সংস্করণের ত্রুটি | Node ২২.১৩ বা নতুন সংস্করণ বসান (`node --version`) |
 | লগইনের পর সাথে সাথে আবার লগআউট হয়ে যায় | HTTPS ছাড়া `COOKIE_SECURE=true` দেওয়া আছে, অথবা প্রক্সি থাকা সত্ত্বেও `TRUST_PROXY` বন্ধ |
 | অডিট লগে সব আইপি 127.0.0.1 | প্রক্সির পেছনে `TRUST_PROXY=true` দিন এবং প্রক্সিতে `X-Forwarded-For` পাঠান |
 | "অনেকবার ভুল চেষ্টা হয়েছে" | কিছুক্ষণ অপেক্ষা করুন। জরুরি হলে সার্ভার রিস্টার্ট করলে সব অস্থায়ী আটকানো মুছে যায়। |

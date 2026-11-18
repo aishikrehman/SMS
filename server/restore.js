@@ -1,8 +1,8 @@
 /* npm run restore -- <backup file> [--yes] [--force]
 
    Replaces ALL data of the configured store (DB_DRIVER) with the content of a backup made by
-   `npm run backup`, the daily backup, or the admin page (.sqlite or .json.gz — either format can be
-   restored into either driver). A bare file name is looked up in BACKUP_DIR.
+   `npm run backup`, the daily backup, or the admin page (.json.gz — restores into MySQL/MariaDB or
+   PostgreSQL alike). A bare file name is looked up in BACKUP_DIR.
 
    · Refuses while the server is running (it keeps the state in memory and would write it back).
      Stop it first (pm2 stop dhee / systemctl stop dhee / Ctrl+C). --force skips that check.

@@ -5,6 +5,8 @@
    the data exactly as the app expects. Only `npm run seed:demo` uses it. */
 
 /* English → Bangla for the demo's personal names (every word must be known, otherwise no Bangla name). */
+/* Demo accounts only: enrolment / staff size behind the labelled monthly bulk ledger entries (never shown on the website). */
+const BULK_ENROLMENT = 3412, BULK_FACULTY = 146;
 const DEMO_NAME_BN = {
   'Mr.': 'জনাব', 'Mrs.': 'মিসেস', 'Dr.': 'ড.', 'Md.': 'মো.', 'Mst.': 'মোসা.',
   Arif: 'আরিফ', Nafisa: 'নাফিসা', Tahmid: 'তাহমিদ', Raisa: 'রাইসা', Sakib: 'সাকিব', Mehjabin: 'মেহজাবিন', Fahim: 'ফাহিম', Tasnia: 'তাসনিয়া', Ayaan: 'আয়ান', Lamia: 'লামিয়া',
@@ -40,7 +42,7 @@ function demoBase(opts) {
       principalName: 'ড. ফারহানা রহমান', directorName: 'প্রকৌ. আমিনুল হক', directorTitle: 'সভাপতি, পরিচালনা পর্ষদ',
       directorMessage: 'পরিচালনা পর্ষদের পক্ষ থেকে সবাইকে শুভেচ্ছা। শিক্ষার্থীদের নিরাপদ, আধুনিক ও আনন্দময় শিক্ষার পরিবেশ নিশ্চিত করাই আমাদের অঙ্গীকার। অভিভাবক, শিক্ষক ও শিক্ষার্থীদের সম্মিলিত প্রচেষ্টায় প্রতিষ্ঠানটি আরও এগিয়ে যাবে।',
       logo: null, stampImage: null, signature: null, directorSignature: null, stampText: 'DHEE ACADEMY · EIIN 108245 · DHAKA',
-      stats: { passRate: 98.6, scholars: 3412, faculty: 146, aPlus: 412 },
+      stats: { passRate: 0, scholars: 0, faculty: 0, aPlus: 0 },   // the homepage shows real counts; these are only a manual override
       merchant: { bKash: '01799-112045', Nagad: '01899-112045', Rocket: '01699-1120457' },
       welcome: '১৯৯৮ সাল থেকে ধী একাডেমি অনুসন্ধিৎসু, সুশৃঙ্খল ও সহমর্মী নাগরিক গড়ে তুলছে। আমাদের শ্রেণিকক্ষে জাতীয় শিক্ষাক্রমের নিবিড় পাঠদানের সঙ্গে বিজ্ঞানমেলা, বিতর্ক, খেলাধুলা ও সমাজসেবার সমন্বয় ঘটানো হয় — যাতে প্রতিটি শিক্ষার্থী বিশ্বের জন্য প্রস্তুত হয়ে বিদ্যালয় ত্যাগ করে।',
       shifts: [{ id: 'MORNING', name: 'প্রভাতি', start: '07:30', end: '12:00' }, { id: 'DAY', name: 'দিবা', start: '12:30', end: '17:00' }],
@@ -283,9 +285,9 @@ function demoBase(opts) {
       jv(`${mk}-10`, `মাসিক বেতন আদায় — ${U.monthName(mk)}`, [{ acct: '1010', dr: coll['1010'], cr: 0 }, { acct: '1020', dr: coll['1020'], cr: 0 }, { acct: '1100', dr: 0, cr: coll['1010'] + coll['1020'] }], { campusId, kind: 'RV' });
     });
   }
-  /* Only a sample of students is stored individually; the rest of the stated enrolment (school.stats.scholars)
+  /* Only a sample of students is stored individually; the rest of the demo enrolment (BULK_ENROLMENT)
      is booked as clearly labelled monthly bulk entries so the accounts reflect a whole institution. */
-  const otherStudents = s.school.stats.scholars - s.students.length, share = { MAIN: 0.7, NORTH: 0.3 }, avgTuition = { MAIN: 2100, NORTH: 1550 };
+  const otherStudents = Math.max(0, BULK_ENROLMENT - s.students.length), share = { MAIN: 0.7, NORTH: 0.3 }, avgTuition = { MAIN: 2100, NORTH: 1550 };
   for (let m = 1; m <= curMonth; m++) {
     const mk = `${year}-${U.pad(m)}`;
     ['MAIN', 'NORTH'].forEach(campusId => {
@@ -323,7 +325,7 @@ function demoBase(opts) {
         gross += p.gross - p.lop; pf += p.pf; net += p.net;
       });
       jv(`${mk}-28`, `কর্মীদের বেতন-ভাতা — ${U.monthName(mk)}`, [{ acct: '5000', dr: gross, cr: 0 }, { acct: '1010', dr: 0, cr: net }, { acct: '2100', dr: 0, cr: pf }], { campusId, kind: 'PV', payee: 'কর্মীবৃন্দ' });
-      const otherStaff = Math.round((s.school.stats.faculty - employees.length) * (campusId === 'MAIN' ? 0.7 : 0.3)), base = 30000, bg = otherStaff * (base * 1.5 + 2500), bpf = otherStaff * base * 0.1;
+      const otherStaff = Math.round(Math.max(0, BULK_FACULTY - employees.length) * (campusId === 'MAIN' ? 0.7 : 0.3)), base = 30000, bg = otherStaff * (base * 1.5 + 2500), bpf = otherStaff * base * 0.1;
       jv(`${mk}-28`, `বেতন-ভাতা — অন্যান্য ${U.bn(otherStaff)} জন শিক্ষক-কর্মী (একত্রে) — ${U.monthName(mk)}`, [{ acct: '5000', dr: bg, cr: 0 }, { acct: '1010', dr: 0, cr: bg - bpf }, { acct: '2100', dr: 0, cr: bpf }], { campusId, kind: 'PV', payee: 'কর্মীবৃন্দ (একত্রে)' });
       const k = campusId === 'MAIN' ? 1 : 0.45;
       const ex = (acct, amt, memo, payee) => jv(`${mk}-${U.pad(12 + Math.floor(r() * 12))}`, memo, [{ acct, dr: Math.round(amt), cr: 0 }, { acct: '1010', dr: 0, cr: Math.round(amt) }], { campusId, kind: 'PV', payee });
