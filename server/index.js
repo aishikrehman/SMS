@@ -55,12 +55,24 @@ function securityHeaders(req, res, next) {
 function staticSite(app) {
   const root = config.ROOT, opts = { etag: true, lastModified: true, maxAge: 0, index: false, dotfiles: 'deny', fallthrough: false };
   const noCache = (req, res, next) => { res.setHeader('Cache-Control', 'no-cache'); next(); };
-  app.get(['/', '/index.html'], noCache, (req, res) => res.sendFile(path.join(root, 'index.html')));
+  // Cache-busting: every /js and /css link in index.html gets ?v=<fingerprint of those files>, so a CDN or browser
+  // that keeps assets for hours (e.g. Cloudflare's browser-cache TTL) still loads new code right after an update + restart.
+  const fs = require('node:fs'), crypto = require('node:crypto');
+  const fingerprint = () => {
+    const h = crypto.createHash('sha1');
+    const walk = d => { for (const f of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) { const p = path.join(d, f.name); if (f.isDirectory()) walk(p); else { const s = fs.statSync(p); h.update(`${p}:${s.size}:${s.mtimeMs}`); } } };
+    ['js', 'css'].forEach(d => { try { walk(path.join(root, d)); } catch (e) { } });
+    return h.digest('hex').slice(0, 10);
+  };
+  const ver = fingerprint();
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/((?:src|href)=")(\/(?:js|css)\/[^"?#]+)(")/g, `$1$2?v=${ver}$3`);
+  const sendIndex = (req, res) => res.type('html').send(html);
+  app.get(['/', '/index.html'], noCache, sendIndex);
   app.use('/css', noCache, express.static(path.join(root, 'css'), opts));
   app.use('/js', noCache, express.static(path.join(root, 'js'), opts));
   // SPA fallback: clean History-API URLs (/results, /admin/database, /print/<id>) all load index.html.
   // Paths with a file extension stay 404 (missing static files), /api is handled above.
-  app.get(/^\/(?!api(?:\/|$)|css\/|js\/)(?!.*\.[A-Za-z0-9]{1,8}$)[^.]*$/, noCache, (req, res) => res.sendFile(path.join(root, 'index.html')));
+  app.get(/^\/(?!api(?:\/|$)|css\/|js\/)(?!.*\.[A-Za-z0-9]{1,8}$)[^.]*$/, noCache, sendIndex);
 }
 
 async function main() {
